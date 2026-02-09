@@ -1,9 +1,10 @@
 import 'package:alter_ego/alter_ego.dart';
 import 'package:alter_ego/alter_ego_service.dart';
+import 'package:alter_ego/question.dart';
 import 'package:flutter/material.dart';
 
 class AlterEgoScreen extends StatefulWidget {
-  final List<int> answers;
+  final List<Answer> answers;
 
   const AlterEgoScreen({super.key, required this.answers});
 
@@ -21,14 +22,14 @@ class _AlterEgoScreenState extends State<AlterEgoScreen> {
     _alterEgosFuture = _calculateAndSaveAlterEgos(widget.answers);
   }
 
-  Future<List<AlterEgo>> _calculateAndSaveAlterEgos(List<int> answers) async {
+  Future<List<AlterEgo>> _calculateAndSaveAlterEgos(List<Answer> answers) async {
     final existingEgos = await _alterEgoService.loadAlterEgos();
     final newEgos = _calculateAlterEgos(answers, existingEgos);
     await _alterEgoService.saveAlterEgos(newEgos);
     return newEgos;
   }
 
-  List<AlterEgo> _calculateAlterEgos(List<int> answers, List<AlterEgo> existingEgos) {
+  List<AlterEgo> _calculateAlterEgos(List<Answer> answers, List<AlterEgo> existingEgos) {
     Map<String, double> scores = existingEgos.isNotEmpty
         ? {for (var ego in existingEgos) ego.name: ego.leaning}
         : {
@@ -37,31 +38,43 @@ class _AlterEgoScreenState extends State<AlterEgoScreen> {
             'The Caretaker': 0.25,
             'The Shadow': 0.25,
           };
+    
+    // Apply scores from each answer
+    for (final answer in answers) {
+      for (final score in answer.scores.entries) {
+        if (scores.containsKey(score.key)) {
+          scores[score.key] = scores[score.key]! + score.value;
+        }
+      }
+    }
 
-    // Simplified logic: Each answer index corresponds to an alter ego.
-    // This is a placeholder for a more sophisticated scoring model.
-    // A real implementation would have a more complex weighting and decay system.
-    if (answers[0] == 0) scores['The Shadow'] = scores['The Shadow']! + 0.05;
-    if (answers[0] == 1) scores['The Rebel'] = scores['The Rebel']! + 0.05;
-    if (answers[0] == 2) scores['The Caretaker'] = scores['The Caretaker']! + 0.05;
-
-    if (answers[1] == 0) scores['The Strategist'] = scores['The Strategist']! + 0.05;
-    if (answers[1] == 1) scores['The Rebel'] = scores['The Rebel']! + 0.05;
-
-    if (answers[2] == 0) scores['The Strategist'] = scores['The Strategist']! + 0.05;
-    if (answers[2] == 1) scores['The Rebel'] = scores['The Rebel']! + 0.05;
-    if (answers[2] == 2) scores['The Caretaker'] = scores['The Caretaker']! + 0.05;
+    // Ensure no score is negative
+    scores.updateAll((key, value) => value < 0 ? 0 : value);
 
     // Normalize scores to sum to 1
     final totalScore = scores.values.reduce((a, b) => a + b);
+    if (totalScore == 0) return existingEgos; // Avoid division by zero
+    
     final normalizedScores = scores.map((key, value) => MapEntry(key, value / totalScore));
 
-    return [
-      AlterEgo(name: 'The Strategist', description: 'plans, thinks ahead, cautious', icon: '🜂', leaning: normalizedScores['The Strategist']!),
-      AlterEgo(name: 'The Rebel', description: 'hates rules, impulsive, emotional', icon: '🜁', leaning: normalizedScores['The Rebel']!),
-      AlterEgo(name: 'The Caretaker', description: 'empathetic, self-sacrificing', icon: '🜄', leaning: normalizedScores['The Caretaker']!),
-      AlterEgo(name: 'The Shadow', description: 'withdrawn, observant, critical', icon: '🜃', leaning: normalizedScores['The Shadow']!),
-    ];
+    // Create a map of existing egos for easy lookup
+    final egoDetails = { for (var ego in existingEgos) ego.name : ego };
+    final defaultDetails = {
+       'The Strategist': {'description': 'plans, thinks ahead, cautious', 'icon': '🜂'},
+       'The Rebel': {'description': 'hates rules, impulsive, emotional', 'icon': '🜁'},
+       'The Caretaker': {'description': 'empathetic, self-sacrificing', 'icon': '🜄'},
+       'The Shadow': {'description': 'withdrawn, observant, critical', 'icon': '🜃'},
+    };
+
+    return normalizedScores.entries.map((entry) {
+      final detail = egoDetails[entry.key] ?? AlterEgo(name: entry.key, description: defaultDetails[entry.key]!['description']!, icon: defaultDetails[entry.key]!['icon']!, leaning: 0);
+      return AlterEgo(
+        name: entry.key,
+        description: detail.description,
+        icon: detail.icon,
+        leaning: entry.value,
+      );
+    }).toList();
   }
 
   @override
@@ -80,10 +93,12 @@ class _AlterEgoScreenState extends State<AlterEgoScreen> {
             return const Center(child: Text('Error calculating your alter egos.'));
           }
           final egos = snapshot.data ?? [];
+          egos.sort((a,b) => b.leaning.compareTo(a.leaning)); // Sort by leaning
+
           return Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
                   "These are not labels.\nThey are tendencies I see emerging.",

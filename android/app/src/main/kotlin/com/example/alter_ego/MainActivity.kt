@@ -1,4 +1,4 @@
-package com.example.alter_ego
+package com.socialfaculty.alter_ego
 
 import io.flutter.embedding.android.FlutterActivity
 

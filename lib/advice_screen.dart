@@ -9,20 +9,36 @@ class AdviceScreen extends StatefulWidget {
   State<AdviceScreen> createState() => _AdviceScreenState();
 }
 
-class _AdviceScreenState extends State<AdviceScreen> {
+class _AdviceScreenState extends State<AdviceScreen> with SingleTickerProviderStateMixin {
   late Future<List<AlterEgo>> _councilFuture;
   final _alterEgoService = AlterEgoService();
+  late AnimationController _animationController;
 
   @override
   void initState() {
     super.initState();
     _councilFuture = _loadCouncil();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   Future<List<AlterEgo>> _loadCouncil() async {
     final egos = await _alterEgoService.loadAlterEgos();
     egos.sort((a, b) => b.leaning.compareTo(a.leaning));
     return egos.take(3).toList();
+  }
+
+  void _choseAdvice(String egoName) {
+    Navigator.pop(context, egoName);
   }
 
   @override
@@ -57,24 +73,32 @@ class _AdviceScreenState extends State<AdviceScreen> {
                     itemCount: council.length,
                     itemBuilder: (context, index) {
                       final ego = council[index];
-                      return _buildAdviceCard(
-                        '${ego.icon} ${ego.name}',
-                        _getAdviceForEgo(ego.name),
-                        _getColorForEgo(ego.name),
+                      return FadeTransition(
+                        opacity: _animationController.drive(CurveTween(curve: Curves.easeIn)),
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0.0, 0.2),
+                            end: Offset.zero,
+                          ).animate(_animationController),
+                          child: GestureDetector(
+                            onTap: () => _choseAdvice(ego.name),
+                            child: _buildAdviceCard(
+                              '${ego.icon} ${ego.name}',
+                              _getAdviceForEgo(ego.name),
+                              _getColorForEgo(ego.name),
+                            ),
+                          ),
+                        ),
                       );
                     },
                   );
                 },
               ),
             ),
-            const Spacer(),
-            ElevatedButton(
-              onPressed: () {
-                // TODO: Capture user's choice and feed back into the model
-                Navigator.pop(context);
-              },
-              child: const Text('I\'ve decided'),
-            ),
+            const SizedBox(height: 20),
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('I will decide later', style: TextStyle(color: Colors.white70)))
           ],
         ),
       ),
@@ -93,11 +117,11 @@ class _AdviceScreenState extends State<AdviceScreen> {
 
   Color _getColorForEgo(String egoName) {
     switch (egoName) {
-      case 'The Strategist': return Colors.blue.withOpacity(0.3);
-      case 'The Rebel': return Colors.red.withOpacity(0.3);
-      case 'The Caretaker': return Colors.green.withOpacity(0.3);
-      case 'The Shadow': return Colors.purple.withOpacity(0.3);
-      default: return Colors.grey.withOpacity(0.3);
+      case 'The Strategist': return Colors.blue.withValues(alpha:0.3);
+      case 'The Rebel': return Colors.red.withValues(alpha:0.3);
+      case 'The Caretaker': return Colors.green.withValues(alpha:0.3);
+      case 'The Shadow': return Colors.purple.withValues(alpha:0.3);
+      default: return Colors.grey.withValues(alpha:0.3);
     }
   }
 

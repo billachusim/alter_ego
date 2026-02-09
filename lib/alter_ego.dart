@@ -10,4 +10,19 @@ class AlterEgo {
     required this.icon,
     required this.leaning,
   });
+
+  // Serialization methods
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'description': description,
+        'icon': icon,
+        'leaning': leaning,
+      };
+
+  factory AlterEgo.fromJson(Map<String, dynamic> json) => AlterEgo(
+        name: json['name'],
+        description: json['description'],
+        icon: json['icon'],
+        leaning: json['leaning'],
+      );
 }

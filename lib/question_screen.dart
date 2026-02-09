@@ -11,31 +11,42 @@ class QuestionScreen extends StatefulWidget {
 
 class _QuestionScreenState extends State<QuestionScreen> {
   int _questionIndex = 0;
-  final List<int> _answers = [];
+  final List<Answer> _answers = [];
 
-  final _questions = [
+  static final _questions = [
     Question(
       text: 'When you\'re angry, what usually happens?',
-      answers: ['I withdraw and shut down', 'I get confrontational', 'I try to understand the other side'],
+      answers: [
+        Answer(text: 'I withdraw and shut down', scores: {'The Shadow': 0.1, 'The Strategist': 0.05}),
+        Answer(text: 'I get confrontational', scores: {'The Rebel': 0.1}),
+        Answer(text: 'I try to understand the other side', scores: {'The Caretaker': 0.1}),
+      ],
     ),
     Question(
-      text: 'Which feels more true?',
-      answers: ['I want stability', 'I want chaos'],
+      text: 'A sudden free weekend appears. You...',
+      answers: [
+        Answer(text: 'Finally tackle that project you\'ve been planning', scores: {'The Strategist': 0.1}),
+        Answer(text: 'Book a spontaneous trip', scores: {'The Rebel': 0.1, 'The Shadow': -0.05}),
+        Answer(text: 'Check in on friends and family', scores: {'The Caretaker': 0.1}),
+      ],
     ),
     Question(
-      text: 'You want stability, but you also want chaos — which wins?',
-      answers: ['Stability', 'Chaos', 'It depends'],
+      text: 'You want stability, but you also want chaos — which wins today?',
+      answers: [
+        Answer(text: 'Stability', scores: {'The Strategist': 0.1, 'The Caretaker': 0.05}),
+        Answer(text: 'Chaos', scores: {'The Rebel': 0.1}),
+        Answer(text: 'A little of both', scores: {'The Strategist': 0.05, 'The Rebel': 0.05}),
+      ],
     ),
   ];
 
-  void _answerQuestion(int answerIndex) {
-    _answers.add(answerIndex);
+  void _answerQuestion(Answer answer) {
+    _answers.add(answer);
     if (_questionIndex < _questions.length - 1) {
       setState(() {
         _questionIndex++;
       });
     } else {
-      // End of questions, navigate to the results screen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => AlterEgoScreen(answers: _answers)),
@@ -54,27 +65,51 @@ class _QuestionScreenState extends State<QuestionScreen> {
         elevation: 0,
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              currentQuestion.text,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 40),
-            ...currentQuestion.answers.asMap().entries.map((entry) {
-              int idx = entry.key;
-              String answer = entry.value;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12.0),
-                child: ElevatedButton(
-                  onPressed: () => _answerQuestion(idx),
-                  child: Text(answer),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          switchOutCurve: Curves.easeIn,
+          switchInCurve: Curves.easeOut,
+          transitionBuilder: (Widget child, Animation<double> animation) {
+            final offsetAnimation = Tween<Offset>(
+              begin: const Offset(1.0, 0.0),
+              end: Offset.zero,
+            ).animate(animation);
+            return SlideTransition(
+              position: offsetAnimation,
+              child: FadeTransition(
+                opacity: animation,
+                child: child,
+              ),
+            );
+          },
+          child: Padding(
+            key: ValueKey<int>(_questionIndex),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  currentQuestion.text,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
-              );
-            }).toList(),
-          ],
+                const SizedBox(height: 40),
+                ...currentQuestion.answers.map((answer) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: ElevatedButton(
+                      onPressed: () => _answerQuestion(answer),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: Text(answer.text, textAlign: TextAlign.center),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
         ),
       ),
     );
