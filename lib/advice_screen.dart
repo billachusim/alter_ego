@@ -45,7 +45,7 @@ class _AdviceScreenState extends State<AdviceScreen> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Your Inner Council'),
+        title: const Text('Alter Ego Leanings'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),

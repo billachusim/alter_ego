@@ -30,7 +30,7 @@ class WhisperEngine {
       await _player.play();
 
       /// tiny silence between voices
-      await Future.delayed(const Duration(milliseconds: 450));
+      await Future.delayed(const Duration(milliseconds: 4000));
     }
   }
 

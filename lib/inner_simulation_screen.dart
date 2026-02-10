@@ -124,30 +124,6 @@ class _InnerSimulationScreenState extends State<InnerSimulationScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xff0B0D12),
-      appBar: AppBar(
-        title: const Text('Inner Simulation'),
-        actions: [
-
-          Row(
-            children: [
-
-              const Icon(Icons.graphic_eq, size: 18),
-
-              Switch(
-                value: _voicesEnabled,
-                onChanged: (value) {
-                  setState(() {
-                    _voicesEnabled = value;
-                  });
-                },
-              ),
-
-              const SizedBox(width: 8),
-            ],
-          ),
-        ],
-      ),
-
       body: Stack(
         children: [
           /// ambient gradient
@@ -170,13 +146,40 @@ class _InnerSimulationScreenState extends State<InnerSimulationScreen>
                 children: [
                   const SizedBox(height: 20),
 
-                  const Text(
-                    "INNER COUNCIL",
-                    style: TextStyle(
-                      letterSpacing: 3,
-                      color: Colors.white38,
-                      fontSize: 12,
-                    ),
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                        icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+                          color: Colors.white,),
+
+                      const SizedBox(width: 8),
+
+                      const Text(
+                        "INNER COUNCIL",
+                        style: TextStyle(
+                          letterSpacing: 3,
+                          color: Colors.white38,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const Spacer(),
+
+                      const Icon(Icons.graphic_eq, size: 18),
+
+                      Switch(
+                        value: _voicesEnabled,
+                        onChanged: (value) {
+                          setState(() {
+                            _voicesEnabled = value;
+                          });
+                        },
+                      ),
+
+                      const SizedBox(width: 8),
+                    ],
                   ),
 
                   const SizedBox(height: 40),
@@ -281,8 +284,8 @@ class _InnerSimulationScreenState extends State<InnerSimulationScreen>
         child: Center(
           child: Text(
             _isSimulating
-                ? "Consulting your council..."
-                : "Run Inner Simulation",
+                ? "Consulting your council of alter egos..."
+                : "Simulate Council",
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 16,

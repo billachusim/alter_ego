@@ -148,7 +148,7 @@ class _HomePageState extends State<HomePage> {
                                   ? () async {
                                       final chosenEgo = await Navigator.push<String>(
                                         context,
-                                        MaterialPageRoute(builder: (context) => const AdviceScreen()),
+                                        MaterialPageRoute(builder: (context) => const InnerSimulationScreen()),
                                       );
                                       if (chosenEgo != null) {
                                         _boostEgo(chosenEgo);
@@ -159,7 +159,7 @@ class _HomePageState extends State<HomePage> {
                                 backgroundColor: Colors.blue.withValues(alpha: 0.3),
                                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                               ),
-                              child: const Text("Get Advice"),
+                              child: const Text("Ask Council"),
                             ),
                           ],
                         ),
@@ -173,11 +173,11 @@ class _HomePageState extends State<HomePage> {
                               onPressed: () {
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(builder: (context) => const HistoryScreen()),
+                                  MaterialPageRoute(builder: (context) => const AdviceScreen()),
                                 );
                               },
-                              icon: const Icon(Icons.show_chart, size: 16),
-                              label: const Text('View History'),
+                              icon: const Icon(Icons.replay, size: 16),
+                              label: const Text('Ranking'),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.amber,
                                 side: const BorderSide(color: Colors.amber),
@@ -188,11 +188,11 @@ class _HomePageState extends State<HomePage> {
                               onPressed: () {
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(builder: (context) => const InnerSimulationScreen()),
+                                  MaterialPageRoute(builder: (context) => const HistoryScreen()),
                                 );
                               },
-                              icon: const Icon(Icons.replay, size: 16),
-                              label: const Text('Inner Simulation'),
+                              icon: const Icon(Icons.show_chart, size: 16),
+                              label: const Text('Evolution'),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.amber,
                                 side: const BorderSide(color: Colors.amber),
