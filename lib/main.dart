@@ -2,6 +2,7 @@ import 'package:alter_ego/advice_screen.dart';
 import 'package:alter_ego/alter_ego.dart';
 import 'package:alter_ego/alter_ego_service.dart';
 import 'package:alter_ego/history_screen.dart';
+import 'package:alter_ego/inner_simulation_screen.dart';
 import 'package:alter_ego/onboarding_screen.dart';
 import 'package:alter_ego/question_screen.dart';
 import 'package:flutter/material.dart';
@@ -97,7 +98,7 @@ class _HomePageState extends State<HomePage> {
                   return Padding(
                     padding: const EdgeInsets.all(24.0),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
                           "Hey, ${_nickname ?? 'friend'}.",
@@ -165,21 +166,39 @@ class _HomePageState extends State<HomePage> {
                         const Spacer(),
                         if (egos.isNotEmpty) _buildBalanceVisualization(context, egos),
                         const SizedBox(height: 20),
-                        Center(
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const HistoryScreen()),
-                              );
-                            },
-                            icon: const Icon(Icons.show_chart, size: 16),
-                            label: const Text('View History'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.amber,
-                              side: const BorderSide(color: Colors.amber),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const HistoryScreen()),
+                                );
+                              },
+                              icon: const Icon(Icons.show_chart, size: 16),
+                              label: const Text('View History'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.amber,
+                                side: const BorderSide(color: Colors.amber),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 16),
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const InnerSimulationScreen()),
+                                );
+                              },
+                              icon: const Icon(Icons.replay, size: 16),
+                              label: const Text('Inner Simulation'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.amber,
+                                side: const BorderSide(color: Colors.amber),
+                              ),
+                            ),
+                          ],
                         )
                       ],
                     ),

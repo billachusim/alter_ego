@@ -111,15 +111,7 @@ class _AlterEgoScreenState extends State<AlterEgoScreen> {
                     itemCount: egos.length,
                     itemBuilder: (context, index) {
                       final ego = egos[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: ListTile(
-                          leading: Text(ego.icon, style: const TextStyle(fontSize: 24)),
-                          title: Text(ego.name),
-                          subtitle: Text(ego.description),
-                          trailing: Text('${(ego.leaning * 100).toInt()}% '),
-                        ),
-                      );
+                      return _voiceCard(ego);
                     },
                   ),
                 ),
@@ -142,6 +134,57 @@ class _AlterEgoScreenState extends State<AlterEgoScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  /////////////////////////////////////////////////////////////
+
+  Widget _voiceCard(AlterEgo ego) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: Colors.white.withValues(alpha:.04),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "${ego.icon}  ${ego.name.toUpperCase()}",
+            style: const TextStyle(
+              letterSpacing: 1.5,
+              fontSize: 13,
+              color: Colors.white60,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text((ego.name),
+            style: const TextStyle(
+              fontSize: 18,
+              height: 1.5,
+              fontWeight: FontWeight.w300,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text((ego.description),
+            style: const TextStyle(
+              fontSize: 18,
+              height: 1.5,
+              fontWeight: FontWeight.w300,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text('${(ego.leaning * 100).toInt()}% ',
+            style: const TextStyle(
+              fontSize: 18,
+              height: 1.5,
+              fontWeight: FontWeight.w300,
+            ),
+          ),
+        ],
       ),
     );
   }
