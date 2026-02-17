@@ -11,7 +11,6 @@ class AlterEgo {
     required this.leaning,
   });
 
-  // Serialization methods
   Map<String, dynamic> toJson() => {
         'name': name,
         'description': description,
@@ -20,9 +19,9 @@ class AlterEgo {
       };
 
   factory AlterEgo.fromJson(Map<String, dynamic> json) => AlterEgo(
-        name: json['name'],
-        description: json['description'],
-        icon: json['icon'],
-        leaning: json['leaning'],
+        name: json['name'] as String,
+        description: json['description'] as String? ?? '',
+        icon: json['icon'] as String? ?? '•',
+        leaning: (json['leaning'] as num).toDouble(),
       );
 }
