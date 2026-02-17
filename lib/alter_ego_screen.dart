@@ -1,5 +1,7 @@
 import 'package:alter_ego/alter_ego.dart';
 import 'package:alter_ego/alter_ego_service.dart';
+import 'package:alter_ego/content/offline_content_repository.dart';
+import 'package:alter_ego/models/identity.dart';
 import 'package:alter_ego/question.dart';
 import 'package:flutter/material.dart';
 
@@ -30,48 +32,33 @@ class _AlterEgoScreenState extends State<AlterEgoScreen> {
   }
 
   List<AlterEgo> _calculateAlterEgos(List<Answer> answers, List<AlterEgo> existingEgos) {
-    Map<String, double> scores = existingEgos.isNotEmpty
-        ? {for (var ego in existingEgos) ego.name: ego.leaning}
-        : {
-            'The Strategist': 0.25,
-            'The Rebel': 0.25,
-            'The Caretaker': 0.25,
-            'The Shadow': 0.25,
-          };
-    
-    // Apply scores from each answer
+    final scores = {
+      for (final profile in OfflineContentRepository.profiles)
+        profile.label: (1 / OfflineContentRepository.profiles.length)
+    };
+
+    for (final ego in existingEgos) {
+      scores[ego.name] = ego.leaning;
+    }
+
     for (final answer in answers) {
       for (final score in answer.scores.entries) {
-        if (scores.containsKey(score.key)) {
-          scores[score.key] = scores[score.key]! + score.value;
-        }
+        final label = identityStorageLabel(score.key);
+        scores[label] = (scores[label] ?? 0) + score.value;
       }
     }
 
-    // Ensure no score is negative
     scores.updateAll((key, value) => value < 0 ? 0 : value);
-
-    // Normalize scores to sum to 1
     final totalScore = scores.values.reduce((a, b) => a + b);
-    if (totalScore == 0) return existingEgos; // Avoid division by zero
-    
-    final normalizedScores = scores.map((key, value) => MapEntry(key, value / totalScore));
+    final normalized = scores.map((key, value) => MapEntry(key, value / totalScore));
 
-    // Create a map of existing egos for easy lookup
-    final egoDetails = { for (var ego in existingEgos) ego.name : ego };
-    final defaultDetails = {
-       'The Strategist': {'description': 'plans, thinks ahead, cautious', 'icon': '🜂'},
-       'The Rebel': {'description': 'hates rules, impulsive, emotional', 'icon': '🜁'},
-       'The Caretaker': {'description': 'empathetic, self-sacrificing', 'icon': '🜄'},
-       'The Shadow': {'description': 'withdrawn, observant, critical', 'icon': '🜃'},
-    };
-
-    return normalizedScores.entries.map((entry) {
-      final detail = egoDetails[entry.key] ?? AlterEgo(name: entry.key, description: defaultDetails[entry.key]!['description']!, icon: defaultDetails[entry.key]!['icon']!, leaning: 0);
+    return normalized.entries.map((entry) {
+      final id = identityIdFromAny(entry.key)!;
+      final profile = OfflineContentRepository.profilesById[id]!;
       return AlterEgo(
-        name: entry.key,
-        description: detail.description,
-        icon: detail.icon,
+        name: profile.label,
+        description: profile.description,
+        icon: profile.icon,
         leaning: entry.value,
       );
     }).toList();
@@ -80,55 +67,29 @@ class _AlterEgoScreenState extends State<AlterEgoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Your Evolving Alter Egos'),
-      ),
+      appBar: AppBar(title: const Text('Your Evolving Alter Egos')),
       body: FutureBuilder<List<AlterEgo>>(
         future: _alterEgosFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snapshot.hasError) {
-            return const Center(child: Text('Error calculating your alter egos.'));
-          }
-          final egos = snapshot.data ?? [];
-          egos.sort((a,b) => b.leaning.compareTo(a.leaning)); // Sort by leaning
-
+          final egos = (snapshot.data ?? [])..sort((a, b) => b.leaning.compareTo(a.leaning));
           return Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  "These are not labels.\nThey are tendencies I see emerging.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 18, fontStyle: FontStyle.italic),
-                ),
-                const SizedBox(height: 24),
+                const Text('These are your active voices today.', style: TextStyle(fontSize: 17, color: Colors.white70)),
+                const SizedBox(height: 12),
                 Expanded(
                   child: ListView.builder(
                     itemCount: egos.length,
-                    itemBuilder: (context, index) {
-                      final ego = egos[index];
-                      return _voiceCard(ego);
-                    },
+                    itemBuilder: (context, index) => _voiceCard(egos[index]),
                   ),
                 ),
-                const SizedBox(height: 24),
-                const Center(
-                  child: Text(
-                    "I'm not sure yet.\nI'll learn as you live.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontStyle: FontStyle.italic, color: Colors.white70),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Center(
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
-                    child: const Text('Continue'),
-                  ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                  child: const Text('Continue'),
                 ),
               ],
             ),
@@ -138,52 +99,28 @@ class _AlterEgoScreenState extends State<AlterEgoScreen> {
     );
   }
 
-  /////////////////////////////////////////////////////////////
-
   Widget _voiceCard(AlterEgo ego) {
+    final id = identityIdFromAny(ego.name)!;
+    final profile = OfflineContentRepository.profilesById[id]!;
     return Container(
-      margin: const EdgeInsets.only(bottom: 18),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: Colors.white.withValues(alpha:.04),
+        borderRadius: BorderRadius.circular(16),
+        color: Colors.white.withValues(alpha: .04),
         border: Border.all(color: Colors.white10),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "${ego.icon}  ${ego.name.toUpperCase()}",
-            style: const TextStyle(
-              letterSpacing: 1.5,
-              fontSize: 13,
-              color: Colors.white60,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text((ego.name),
-            style: const TextStyle(
-              fontSize: 18,
-              height: 1.5,
-              fontWeight: FontWeight.w300,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text((ego.description),
-            style: const TextStyle(
-              fontSize: 18,
-              height: 1.5,
-              fontWeight: FontWeight.w300,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text('${(ego.leaning * 100).toInt()}% ',
-            style: const TextStyle(
-              fontSize: 18,
-              height: 1.5,
-              fontWeight: FontWeight.w300,
-            ),
-          ),
+          Text('${ego.icon} ${ego.name}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          Text(profile.description),
+          const SizedBox(height: 8),
+          Text('Shadow pattern: ${profile.shadowPattern}', style: const TextStyle(color: Colors.white70)),
+          Text('Growth cue: ${profile.growthCue}', style: const TextStyle(color: Colors.white70)),
+          const SizedBox(height: 8),
+          Text('${(ego.leaning * 100).toStringAsFixed(1)}%'),
         ],
       ),
     );

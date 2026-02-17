@@ -1,5 +1,7 @@
 import 'package:alter_ego/alter_ego_screen.dart';
+import 'package:alter_ego/content/offline_content_repository.dart';
 import 'package:alter_ego/question.dart';
+import 'package:alter_ego/services/app_settings_service.dart';
 import 'package:flutter/material.dart';
 
 class QuestionScreen extends StatefulWidget {
@@ -12,41 +14,36 @@ class QuestionScreen extends StatefulWidget {
 class _QuestionScreenState extends State<QuestionScreen> {
   int _questionIndex = 0;
   final List<Answer> _answers = [];
+  final AppSettingsService _settings = AppSettingsService();
+  List<Question> _questions = [];
 
-  static final _questions = [
-    Question(
-      text: 'When you\'re angry, what usually happens?',
-      answers: [
-        Answer(text: 'I withdraw and shut down', scores: {'The Shadow': 0.1, 'The Strategist': 0.05}),
-        Answer(text: 'I get confrontational', scores: {'The Rebel': 0.1}),
-        Answer(text: 'I try to understand the other side', scores: {'The Caretaker': 0.1}),
-      ],
-    ),
-    Question(
-      text: 'A sudden free weekend appears. You...',
-      answers: [
-        Answer(text: 'Finally tackle that project you\'ve been planning', scores: {'The Strategist': 0.1}),
-        Answer(text: 'Book a spontaneous trip', scores: {'The Rebel': 0.1, 'The Shadow': -0.05}),
-        Answer(text: 'Check in on friends and family', scores: {'The Caretaker': 0.1}),
-      ],
-    ),
-    Question(
-      text: 'You want stability, but you also want chaos — which wins today?',
-      answers: [
-        Answer(text: 'Stability', scores: {'The Strategist': 0.1, 'The Caretaker': 0.05}),
-        Answer(text: 'Chaos', scores: {'The Rebel': 0.1}),
-        Answer(text: 'A little of both', scores: {'The Strategist': 0.05, 'The Rebel': 0.05}),
-      ],
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadQuestions();
+  }
 
-  void _answerQuestion(Answer answer) {
+  Future<void> _loadQuestions() async {
+    final recent = await _settings.recentQuestionIds();
+    final selected = OfflineContentRepository.selectDailyQuestions(
+      day: DateTime.now(),
+      excludedIds: recent,
+      count: 8,
+    );
+    setState(() {
+      _questions = selected;
+    });
+  }
+
+  Future<void> _answerQuestion(Answer answer) async {
     _answers.add(answer);
     if (_questionIndex < _questions.length - 1) {
       setState(() {
         _questionIndex++;
       });
     } else {
+      await _settings.rememberQuestionIds(_questions.map((q) => q.id).toList());
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => AlterEgoScreen(answers: _answers)),
@@ -56,60 +53,40 @@ class _QuestionScreenState extends State<QuestionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_questions.isEmpty) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     final currentQuestion = _questions[_questionIndex];
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Check-in (${_questionIndex + 1}/${_questions.length})'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: Center(
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          switchOutCurve: Curves.easeIn,
-          switchInCurve: Curves.easeOut,
-          transitionBuilder: (Widget child, Animation<double> animation) {
-            final offsetAnimation = Tween<Offset>(
-              begin: const Offset(1.0, 0.0),
-              end: Offset.zero,
-            ).animate(animation);
-            return SlideTransition(
-              position: offsetAnimation,
-              child: FadeTransition(
-                opacity: animation,
-                child: child,
-              ),
-            );
-          },
-          child: Padding(
-            key: ValueKey<int>(_questionIndex),
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  currentQuestion.text,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 40),
-                ...currentQuestion.answers.map((answer) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12.0),
-                    child: ElevatedButton(
-                      onPressed: () => _answerQuestion(answer),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: Text(answer.text, textAlign: TextAlign.center),
-                    ),
-                  );
-                }),
-              ],
+      appBar: AppBar(title: Text('Check-in (${_questionIndex + 1}/${_questions.length})')),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              currentQuestion.category.toUpperCase(),
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white60, letterSpacing: 2),
             ),
-          ),
+            const SizedBox(height: 12),
+            Text(
+              currentQuestion.text,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 30),
+            ...currentQuestion.answers.map((answer) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: ElevatedButton(
+                    onPressed: () => _answerQuestion(answer),
+                    style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                    child: Text(answer.text, textAlign: TextAlign.center),
+                  ),
+                )),
+          ],
         ),
       ),
     );

@@ -1,27 +1,13 @@
+import 'package:alter_ego/models/identity.dart';
+
 class EgoVoiceMapper {
-
-  static String voiceId(String ego) {
-
-    switch (ego) {
-
-    // Calm masculine strategist
-      case "Strategist":
-        return "EXAVITQu4vr4xnSDxMaL";
-
-    // Slightly edgy rebel
-      case "Rebel":
-        return "TxGEqnHWrfWFTfGW9XjX";
-
-    // Deep mysterious
-      case "Shadow":
-        return "ErXwobaYiN019PkySvjV";
-
-    // Warm caretaker
-      case "Caretaker":
-        return "MF3mGyEYCl7XYWbV9V6O";
-
-      default:
-        return "EXAVITQu4vr4xnSDxMaL";
-    }
+  static String voiceId(IdentityId identity) {
+    return switch (identity) {
+      IdentityId.strategist => 'EXAVITQu4vr4xnSDxMaL',
+      IdentityId.rebel => 'TxGEqnHWrfWFTfGW9XjX',
+      IdentityId.shadow => 'ErXwobaYiN019PkySvjV',
+      IdentityId.caretaker => 'MF3mGyEYCl7XYWbV9V6O',
+      _ => 'EXAVITQu4vr4xnSDxMaL',
+    };
   }
 }

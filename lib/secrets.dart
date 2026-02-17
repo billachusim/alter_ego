@@ -1,1 +1,1 @@
-const elevenLabsApiKey = "sk_880113cb0d15aea312593d7877257dfed34a37fc490af742";
+// Intentionally empty. Configure ELEVEN_LABS_API_KEY with --dart-define.
