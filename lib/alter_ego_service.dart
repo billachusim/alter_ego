@@ -1,5 +1,8 @@
 import 'dart:convert';
+
 import 'package:alter_ego/alter_ego.dart';
+import 'package:alter_ego/models/identity.dart';
+import 'package:alter_ego/services/local_data_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AlterEgoSnapshot {
@@ -8,7 +11,6 @@ class AlterEgoSnapshot {
 
   AlterEgoSnapshot({required this.timestamp, required this.egos});
 
-  // Serialization methods
   Map<String, dynamic> toJson() => {
         'timestamp': timestamp.toIso8601String(),
         'egos': egos.map((e) => e.toJson()).toList(),
@@ -21,68 +23,71 @@ class AlterEgoSnapshot {
 }
 
 class AlterEgoService {
-  static const _key = 'alter_egos';
-  static const _historyKey = 'alter_ego_history';
+  static const _legacyKey = 'alter_egos';
+  static const _legacyHistoryKey = 'alter_ego_history';
+
+  final LocalDataStore _store = LocalDataStore.instance;
+  bool _migrationDone = false;
+
+  Future<void> _ensureMigrated() async {
+    if (_migrationDone) return;
+    final prefs = await SharedPreferences.getInstance();
+
+    final legacyEgos = prefs.getStringList(_legacyKey);
+    if (legacyEgos != null && legacyEgos.isNotEmpty) {
+      final parsed = legacyEgos
+          .map((e) => AlterEgo.fromJson(jsonDecode(e)))
+          .map(_normalizeName)
+          .toList();
+      await _store.saveCurrentEgos(parsed);
+    }
+
+    final legacyHistory = prefs.getStringList(_legacyHistoryKey);
+    if (legacyHistory != null && legacyHistory.isNotEmpty) {
+      for (final item in legacyHistory) {
+        final snap = AlterEgoSnapshot.fromJson(jsonDecode(item));
+        await _store.appendSnapshot(snap.egos.map(_normalizeName).toList());
+      }
+    }
+
+    await prefs.remove(_legacyKey);
+    await prefs.remove(_legacyHistoryKey);
+    _migrationDone = true;
+  }
 
   Future<void> saveAlterEgos(List<AlterEgo> egos) async {
-    final prefs = await SharedPreferences.getInstance();
-    final egoList = egos.map((ego) => jsonEncode(ego.toJson())).toList();
-    await prefs.setStringList(_key, egoList);
-    await _saveHistoricalSnapshot(egos); // Also save a snapshot
+    await _ensureMigrated();
+    final normalized = egos.map(_normalizeName).toList();
+    await _store.saveCurrentEgos(normalized);
+    await _store.appendSnapshot(normalized);
+    await _store.pruneAndRollupSnapshots();
+    await _store.appendEvent('checkin', {'count': normalized.length});
   }
 
   Future<List<AlterEgo>> loadAlterEgos() async {
-    final prefs = await SharedPreferences.getInstance();
-    final egoList = prefs.getStringList(_key);
-    if (egoList == null) {
-      return [];
-    }
-    return egoList.map((egoString) {
-      final egoMap = jsonDecode(egoString);
-      return AlterEgo.fromJson(egoMap);
-    }).toList();
-  }
-
-  Future<void> _saveHistoricalSnapshot(List<AlterEgo> egos) async {
-    final prefs = await SharedPreferences.getInstance();
-    final history = await loadHistory();
-    history.add(AlterEgoSnapshot(timestamp: DateTime.now(), egos: egos));
-
-    // Keep history to a reasonable size, e.g., last 30 entries
-    if (history.length > 30) {
-      history.removeRange(0, history.length - 30);
-    }
-
-    final historyList = history.map((snapshot) => jsonEncode(snapshot.toJson())).toList();
-    await prefs.setStringList(_historyKey, historyList);
+    await _ensureMigrated();
+    return _store.loadCurrentEgos();
   }
 
   Future<List<AlterEgoSnapshot>> loadHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    final historyList = prefs.getStringList(_historyKey);
-    if (historyList == null) {
-      return [];
-    }
-    return historyList.map((snapshotString) {
-      final snapshotMap = jsonDecode(snapshotString);
-      return AlterEgoSnapshot.fromJson(snapshotMap);
+    await _ensureMigrated();
+    final rows = await _store.loadSnapshots();
+    return rows.map((row) {
+      final timestamp = DateTime.parse(row['created_at']! as String);
+      final payload = jsonDecode(row['payload']! as String) as List<dynamic>;
+      final egos = payload.map((e) => AlterEgo.fromJson(e)).toList();
+      return AlterEgoSnapshot(timestamp: timestamp, egos: egos);
     }).toList();
   }
-}
 
-// Add serialization to AlterEgo model
-extension on AlterEgo {
-  Map<String, dynamic> toJson() => {
-        'name': name,
-        'description': description,
-        'icon': icon,
-        'leaning': leaning,
-      };
-
-  static AlterEgo fromJson(Map<String, dynamic> json) => AlterEgo(
-        name: json['name'],
-        description: json['description'],
-        icon: json['icon'],
-        leaning: json['leaning'],
-      );
+  AlterEgo _normalizeName(AlterEgo ego) {
+    final id = identityIdFromAny(ego.name);
+    if (id == null) return ego;
+    return AlterEgo(
+      name: identityStorageLabel(id),
+      description: ego.description,
+      icon: ego.icon,
+      leaning: ego.leaning,
+    );
+  }
 }

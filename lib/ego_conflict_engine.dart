@@ -1,31 +1,64 @@
-import 'ego_conflict.dart';
+import 'package:alter_ego/content/offline_content_repository.dart';
+import 'package:alter_ego/ego_conflict.dart';
+import 'package:alter_ego/models/identity.dart';
 
 class EgoConflictEngine {
+  static const _tags = {
+    'fear': ['fear', 'anxious', 'scared', 'panic', 'afraid'],
+    'authority': ['boss', 'manager', 'authority', 'rules', 'control'],
+    'love': ['relationship', 'love', 'dating', 'partner', 'heart'],
+    'risk': ['risk', 'chance', 'gamble', 'quit', 'move'],
+    'boundaries': ['boundary', 'no', 'drained', 'used', 'respect'],
+    'guilt': ['guilt', 'ashamed', 'regret', 'sorry', 'failed'],
+  };
 
   static List<EgoConflict> generate(String situation) {
+    final lowered = situation.toLowerCase();
+    final matched = <String>[];
 
-    /// Later replace this with AI call.
-    /// Keep structure.
+    _tags.forEach((tag, words) {
+      if (words.any(lowered.contains)) {
+        matched.add(tag);
+      }
+    });
 
-    return [
-      EgoConflict(
-        ego: "Strategist",
-        message: "Control the variables. Walk in prepared.",
-      ),
-      EgoConflict(
-        ego: "Rebel",
-        message: "Over-preparation kills authenticity.",
-      ),
-      EgoConflict(
-        ego: "Shadow",
-        message:
-        "You are both ignoring the real question — why is he afraid?",
-      ),
-      EgoConflict(
-        ego: "Caretaker",
-        message:
-        "Maybe focus less on yourself and more on how you can serve.",
-      ),
-    ];
+    final tag = matched.isEmpty ? 'decision' : matched.first;
+    final intensity = lowered.length > 100 ? 'high' : 'medium';
+
+    final order = _identityOrderForTag(tag);
+    return order.take(4).toList().asMap().entries.map((entry) {
+      final identity = entry.value;
+      return EgoConflict(
+        identity: identity,
+        message: OfflineContentRepository.pickReply(
+          identity: identity,
+          situationType: _situationForTag(tag),
+          intensity: intensity,
+          seed: lowered.hashCode + entry.key,
+        ),
+        rationale: 'Triggered by "$tag" language in your situation.',
+      );
+    }).toList();
+  }
+
+  static List<IdentityId> _identityOrderForTag(String tag) {
+    return switch (tag) {
+      'fear' => [IdentityId.shadow, IdentityId.protector, IdentityId.strategist, IdentityId.romantic],
+      'authority' => [IdentityId.rebel, IdentityId.strategist, IdentityId.analyst, IdentityId.achiever],
+      'love' => [IdentityId.romantic, IdentityId.caretaker, IdentityId.shadow, IdentityId.protector],
+      'boundaries' => [IdentityId.protector, IdentityId.caretaker, IdentityId.rebel, IdentityId.shadow],
+      'guilt' => [IdentityId.caretaker, IdentityId.shadow, IdentityId.analyst, IdentityId.escapist],
+      _ => [IdentityId.strategist, IdentityId.rebel, IdentityId.analyst, IdentityId.shadow],
+    };
+  }
+
+  static String _situationForTag(String tag) {
+    return switch (tag) {
+      'fear' => 'fear',
+      'authority' => 'career',
+      'love' => 'love',
+      'boundaries' => 'boundaries',
+      _ => 'decision',
+    };
   }
 }

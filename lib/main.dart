@@ -1,17 +1,19 @@
 import 'package:alter_ego/advice_screen.dart';
 import 'package:alter_ego/alter_ego.dart';
 import 'package:alter_ego/alter_ego_service.dart';
+import 'package:alter_ego/content/offline_content_repository.dart';
 import 'package:alter_ego/history_screen.dart';
 import 'package:alter_ego/inner_simulation_screen.dart';
+import 'package:alter_ego/models/identity.dart';
 import 'package:alter_ego/onboarding_screen.dart';
 import 'package:alter_ego/question_screen.dart';
+import 'package:alter_ego/services/app_settings_service.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final prefs = await SharedPreferences.getInstance();
-  final hasOnboarded = prefs.getBool('hasOnboarded') ?? false;
+  final settings = AppSettingsService();
+  final hasOnboarded = await settings.hasOnboarded();
   runApp(AlterEgoApp(hasOnboarded: hasOnboarded));
 }
 
@@ -24,11 +26,7 @@ class AlterEgoApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'AlterEgo',
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF1A1A1A),
-        primaryColor: Colors.white,
-        colorScheme: const ColorScheme.dark(primary: Colors.white, secondary: Colors.blueAccent),
-      ),
+      theme: ThemeData.dark().copyWith(scaffoldBackgroundColor: const Color(0xFF101217)),
       home: hasOnboarded ? const HomePage() : const OnboardingScreen(),
     );
   }
@@ -42,8 +40,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  Future<List<AlterEgo>>? _alterEgosFuture;
   final _alterEgoService = AlterEgoService();
+  final _settings = AppSettingsService();
+  Future<List<AlterEgo>>? _alterEgosFuture;
   String? _nickname;
 
   @override
@@ -52,32 +51,13 @@ class _HomePageState extends State<HomePage> {
     _loadData();
   }
 
-  void _loadData() async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<void> _loadData() async {
+    final nickname = await _settings.nickname();
+    final egos = _alterEgoService.loadAlterEgos();
     setState(() {
-      _nickname = prefs.getString('nickname');
-      _alterEgosFuture = _alterEgoService.loadAlterEgos();
+      _nickname = nickname;
+      _alterEgosFuture = egos;
     });
-  }
-
-  Future<void> _boostEgo(String egoName) async {
-    final egos = await _alterEgoService.loadAlterEgos();
-    final egoToBoost = egos.firstWhere((ego) => ego.name == egoName, orElse: () => AlterEgo(name: 'unknown', description: '', icon: '', leaning: 0));
-
-    if(egoToBoost.name == 'unknown') return; // Ego not found
-
-    final boostedEgos = egos.map((ego) {
-      if (ego.name == egoName) {
-        return AlterEgo(name: ego.name, description: ego.description, icon: ego.icon, leaning: ego.leaning + 0.1);
-      }
-      return ego;
-    }).toList();
-
-    final totalLeaning = boostedEgos.map((e) => e.leaning).reduce((a, b) => a + b);
-    final normalizedEgos = boostedEgos.map((ego) => AlterEgo(name: ego.name, description: ego.description, icon: ego.icon, leaning: ego.leaning / totalLeaning)).toList();
-    
-    await _alterEgoService.saveAlterEgos(normalizedEgos);
-    _loadData();
   }
 
   @override
@@ -89,114 +69,62 @@ class _HomePageState extends State<HomePage> {
             : FutureBuilder<List<AlterEgo>>(
                 future: _alterEgosFuture,
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting && _nickname == null) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
                   final egos = snapshot.data ?? [];
-                  final dominantEgo = egos.isNotEmpty ? egos.fold(egos[0], (max, e) => e.leaning > max.leaning ? e : max) : null;
+                  egos.sort((a, b) => b.leaning.compareTo(a.leaning));
+                  final top3 = egos.take(3).toList();
+                  final dominant = top3.isNotEmpty ? top3.first : null;
 
                   return Padding(
-                    padding: const EdgeInsets.all(24.0),
+                    padding: const EdgeInsets.all(20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
-                          "Hey, ${_nickname ?? 'friend'}.",
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white70),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          "Today's Dominant Alter Ego",
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white70),
-                        ),
+                        Text('Hey, ${_nickname ?? 'friend'}.', style: Theme.of(context).textTheme.headlineSmall),
                         const SizedBox(height: 8),
-                        Text(
-                          dominantEgo != null ? "${dominantEgo.icon} ${dominantEgo.name}" : "Unknown",
-                          style: Theme.of(context).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 32),
-                        Text(
-                          "Quick Advice",
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white70),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          dominantEgo != null ? _getAdviceForEgo(dominantEgo.name) : "Answer some questions to get advice.",
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontStyle: FontStyle.italic),
-                        ),
-                        const SizedBox(height: 32),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            ElevatedButton(
-                              onPressed: () async {
-                                await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => const QuestionScreen()),
-                                );
-                                _loadData();
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white12,
-                                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                              ),
-                              child: const Text("Check-in"),
+                        const Text('Who is really in control today?', style: TextStyle(color: Colors.white70)),
+                        const SizedBox(height: 20),
+                        if (dominant != null)
+                          Card(
+                            color: Colors.white10,
+                            child: ListTile(
+                              title: Text('${dominant.icon} ${dominant.name}'),
+                              subtitle: Text(_quickAdvice(dominant.name)),
                             ),
-                            const SizedBox(width: 16),
-                            ElevatedButton(
-                              onPressed: egos.isNotEmpty
-                                  ? () async {
-                                      final chosenEgo = await Navigator.push<String>(
-                                        context,
-                                        MaterialPageRoute(builder: (context) => const InnerSimulationScreen()),
-                                      );
-                                      if (chosenEgo != null) {
-                                        _boostEgo(chosenEgo);
-                                      }
-                                    }
-                                  : null,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue.withValues(alpha: 0.3),
-                                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                              ),
-                              child: const Text("Ask Council"),
-                            ),
-                          ],
+                          ),
+                        if (top3.isNotEmpty)
+                          Wrap(
+                            spacing: 8,
+                            children: top3
+                                .map((e) => Chip(label: Text('${e.name} ${(e.leaning * 100).round()}%')))
+                                .toList(),
+                          ),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: () async {
+                            await Navigator.push(context, MaterialPageRoute(builder: (_) => const QuestionScreen()));
+                            _loadData();
+                          },
+                          child: const Text('Run Daily Check-in'),
+                        ),
+                        const SizedBox(height: 10),
+                        ElevatedButton(
+                          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InnerSimulationScreen())),
+                          child: const Text('Run Council Simulation'),
                         ),
                         const Spacer(),
-                        if (egos.isNotEmpty) _buildBalanceVisualization(context, egos),
-                        const SizedBox(height: 20),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             OutlinedButton.icon(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => const AdviceScreen()),
-                                );
-                              },
-                              icon: const Icon(Icons.replay, size: 16),
-                              label: const Text('Ranking'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.amber,
-                                side: const BorderSide(color: Colors.amber),
-                              ),
+                              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdviceScreen())),
+                              icon: const Icon(Icons.forum),
+                              label: const Text('Council Replies'),
                             ),
-                            const SizedBox(width: 16),
+                            const SizedBox(width: 12),
                             OutlinedButton.icon(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => const HistoryScreen()),
-                                );
-                              },
-                              icon: const Icon(Icons.show_chart, size: 16),
-                              label: const Text('Evolution'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.amber,
-                                side: const BorderSide(color: Colors.amber),
-                              ),
+                              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen())),
+                              icon: const Icon(Icons.show_chart),
+                              label: const Text('Identity Trends'),
                             ),
                           ],
                         )
@@ -209,63 +137,13 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  String _getAdviceForEgo(String egoName) {
-    switch (egoName) {
-      case 'The Strategist': return "Wait. Think about the consequences.";
-      case 'The Rebel': return "Do it. You're tired of playing safe.";
-      case 'The Caretaker': return "How will this affect people you care about?";
-      case 'The Shadow': return "Observe for now. Information is power.";
-      default: return "Embrace the mystery within.";
-    }
-  }
-
-  Widget _buildBalanceVisualization(BuildContext context, List<AlterEgo> egos) {
-    return Center(
-      child: Column(
-        children: [
-          Text(
-            "Alter Ego Balance",
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white70),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            height: 100,
-            padding: const EdgeInsets.all(8.0),
-            decoration: BoxDecoration(
-              color: Colors.white10,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: egos.map((ego) {
-                return Expanded(
-                  flex: (ego.leaning * 100).toInt(),
-                  child: Tooltip(
-                    message: '${ego.name}: ${(ego.leaning * 100).toInt()}%',
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 500),
-                      margin: const EdgeInsets.symmetric(horizontal: 2),
-                      decoration: BoxDecoration(
-                        color: _getColorForEgo(ego.name),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ],
-      ),
+  String _quickAdvice(String egoName) {
+    final id = identityIdFromAny(egoName) ?? IdentityId.shadow;
+    return OfflineContentRepository.pickReply(
+      identity: id,
+      situationType: 'decision',
+      intensity: 'low',
+      seed: DateTime.now().weekday,
     );
-  }
-
-  Color _getColorForEgo(String egoName) {
-    switch (egoName) {
-      case 'The Strategist': return Colors.blue.withValues(alpha:0.8);
-      case 'The Rebel': return Colors.red.withValues(alpha:0.8);
-      case 'The Caretaker': return Colors.green.withValues(alpha:0.8);
-      case 'The Shadow': return Colors.purple.withValues(alpha:0.8);
-      default: return Colors.grey;
-    }
   }
 }
