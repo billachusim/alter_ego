@@ -62,31 +62,33 @@ class _QuestionScreenState extends State<QuestionScreen> {
       appBar: AppBar(title: Text('Check-in (${_questionIndex + 1}/${_questions.length})')),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              currentQuestion.category.toUpperCase(),
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white60, letterSpacing: 2),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              currentQuestion.text,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 30),
-            ...currentQuestion.answers.map((answer) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12.0),
-                  child: ElevatedButton(
-                    onPressed: () => _answerQuestion(answer),
-                    style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-                    child: Text(answer.text, textAlign: TextAlign.center),
-                  ),
-                )),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                currentQuestion.category.toUpperCase(),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white60, letterSpacing: 2),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                currentQuestion.text,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 30),
+              ...currentQuestion.answers.map((answer) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: ElevatedButton(
+                      onPressed: () => _answerQuestion(answer),
+                      style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                      child: Text(answer.text, textAlign: TextAlign.center),
+                    ),
+                  )),
+            ],
+          ),
         ),
       ),
     );

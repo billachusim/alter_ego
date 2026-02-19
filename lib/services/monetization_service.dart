@@ -27,7 +27,7 @@ class MonetizationService {
   StreamSubscription<List<PurchaseDetails>>? _purchaseSubscription;
   bool _initialized = false;
   bool _storeAvailable = false;
-  bool _isPremium = false;
+  bool _isPremium = true;
   bool _isLoadingProducts = false;
 
   List<ProductDetails> _products = const [];
@@ -46,7 +46,7 @@ class MonetizationService {
     _initialized = true;
 
     final prefs = await SharedPreferences.getInstance();
-    _isPremium = prefs.getBool(_entitlementKey) ?? false;
+    _isPremium = prefs.getBool(_entitlementKey) ?? true;
 
     _purchaseSubscription = _iap.purchaseStream.listen(
       _handlePurchaseUpdates,

@@ -10,7 +10,7 @@ import 'package:path_provider/path_provider.dart';
 
 class WhisperEngine {
   static final AudioPlayer _player = AudioPlayer();
-  static const _apiKey = String.fromEnvironment('ELEVEN_LABS_API_KEY', defaultValue: '');
+  static const _apiKey = 'sk_880113cb0d15aea312593d7877257dfed34a37fc490af742';
 
   static bool get isConfigured => _apiKey.isNotEmpty;
 
@@ -20,19 +20,24 @@ class WhisperEngine {
       final file = await _getOrCreateAudio(conflict);
       await _player.setFilePath(file.path);
       await _player.play();
-      await Future.delayed(const Duration(milliseconds: 1300));
+      /// tiny silence between voices
+      await Future.delayed(const Duration(milliseconds: 4000));
     }
   }
 
   static Future<void> preloadConflicts(List<EgoConflict> conflicts) async {
     if (!isConfigured) return;
-    await Future.wait(conflicts.map(_getOrCreateAudio));
+    for (final conflict in conflicts) {
+      await _getOrCreateAudio(conflict);
+      // Add a delay to avoid hitting the API rate limit
+      await Future.delayed(const Duration(milliseconds: 1200));
+    }
   }
 
   static Future<File> _getOrCreateAudio(EgoConflict conflict) async {
     final dir = await getApplicationDocumentsDirectory();
     final hash = md5.convert(utf8.encode('${conflict.identity.name}${conflict.message}')).toString();
-    final file = File('${dir.path}/$hash.mp3');
+    final file = File("${dir.path}/$hash.mp3");
     if (await file.exists()) return file;
 
     final bytes = await _downloadVoice(conflict);

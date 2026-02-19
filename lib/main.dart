@@ -86,101 +86,143 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_monetization.isPremium ? 'Alter Ego Premium' : 'Alter Ego Free'),
-        actions: [
-          if (!_monetization.isPremium)
-            TextButton(
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaywallScreen())),
-              child: const Text('Go Premium'),
-            ),
-        ],
-      ),
       body: SafeArea(
         child: _alterEgosFuture == null
             ? const Center(child: CircularProgressIndicator())
             : FutureBuilder<List<AlterEgo>>(
-                future: _alterEgosFuture,
-                builder: (context, snapshot) {
-                  final egos = snapshot.data ?? [];
-                  egos.sort((a, b) => b.leaning.compareTo(a.leaning));
-                  final visibleCount = _monetization.applyIdentityLimit(egos.length);
-                  final visibleEgos = egos.take(visibleCount).toList();
-                  final dominant = visibleEgos.isNotEmpty ? visibleEgos.first : null;
+          future: _alterEgosFuture,
+          builder: (context, snapshot) {
+            final egos = snapshot.data ?? [];
+            egos.sort((a, b) => b.leaning.compareTo(a.leaning));
+            final visibleCount = _monetization.applyIdentityLimit(egos.length);
+            final visibleEgos = egos.take(visibleCount).toList();
+            final dominant = visibleEgos.isNotEmpty ? visibleEgos.first : null;
 
-                  return Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+            return SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text('Hey, ${_nickname ?? 'friend'}.', style: Theme.of(context).textTheme.headlineSmall),
-                        const SizedBox(height: 8),
-                        const Text('Who is really in control today?', style: TextStyle(color: Colors.white70)),
-                        const SizedBox(height: 20),
-                        if (dominant != null)
-                          Card(
-                            color: Colors.white10,
-                            child: ListTile(
-                              title: Text('${dominant.icon} ${dominant.name}'),
-                              subtitle: Text(_quickAdvice(dominant.name)),
-                            ),
-                          ),
-                        if (visibleEgos.isNotEmpty)
-                          Wrap(
-                            spacing: 8,
-                            children: visibleEgos
-                                .map((e) => Chip(label: Text('${e.name} ${(e.leaning * 100).round()}%')))
-                                .toList(),
-                          ),
+
                         if (!_monetization.isPremium)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 8.0),
-                            child: Text('Free tier shows top 3 voices. Upgrade for full identity map.', style: TextStyle(color: Colors.amber)),
+                          TextButton(
+                            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaywallScreen())),
+                            child: const Text('Go Premium'),
                           ),
-                        const SizedBox(height: 12),
-                        ElevatedButton(
-                          onPressed: () async {
-                            await Navigator.push(context, MaterialPageRoute(builder: (_) => const QuestionScreen()));
-                            _loadData();
-                          },
-                          child: const Text('Run Daily Check-in'),
-                        ),
-                        const SizedBox(height: 10),
-                        ElevatedButton(
-                          onPressed: () async {
-                            if (!_monetization.canAccess(PremiumFeature.deepCouncilSimulation) && !await _ensurePremium()) {
-                              return;
-                            }
-                            if (!mounted) return;
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const InnerSimulationScreen()));
-                          },
-                          child: Text(_monetization.isPremium ? 'Run Council Simulation' : 'Run Council Simulation (Premium)'),
-                        ),
-                        const Spacer(),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            OutlinedButton.icon(
-                              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdviceScreen())),
-                              icon: const Icon(Icons.forum),
-                              label: const Text('Council Replies'),
-                            ),
-                            const SizedBox(width: 12),
-                            OutlinedButton.icon(
-                              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen())),
-                              icon: const Icon(Icons.show_chart),
-                              label: Text(_monetization.isPremium ? 'Identity Trends' : 'Identity Trends (Limited)'),
-                            ),
-                          ],
-                        )
+                        if (_monetization.isPremium)
+                          TextButton(
+                            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaywallScreen())),
+                            child: const Text('Premium'),
+                          ),
                       ],
                     ),
-                  );
-                },
+                    const SizedBox(height: 8),
+                    const Text('Who is really in control today?', style: TextStyle(color: Colors.white70)),
+                    const SizedBox(height: 20),
+                    if (dominant != null)
+                      Card(
+                        color: Colors.white10,
+                        child: ListTile(
+                          title: Text('${dominant.icon} ${dominant.name}'),
+                          subtitle: Text(_quickAdvice(dominant.name)),
+                        ),
+                      ),
+                    const SizedBox(height: 10),
+                    if (visibleEgos.isNotEmpty)
+                      Wrap(
+                        spacing: 8,
+                        children: visibleEgos
+                            .map((e) => Chip(label: Text('${e.name} ${(e.leaning * 100).round()}%')))
+                            .toList(),
+                      ),
+                    const SizedBox(height: 10),
+                    if (!_monetization.isPremium)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8.0),
+                        child: Text('Free tier shows top 3 voices. Upgrade for full identity map.',
+                            style: TextStyle(color: Colors.amber)),
+                      ),
+                    const SizedBox(height: 22),
+                    ElevatedButton(
+                      onPressed: () async {
+                        await Navigator.push(context, MaterialPageRoute(builder: (_) => const QuestionScreen()));
+                        _loadData();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white12,
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                      ),
+                      child: const Text('Daily Check-in'),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (!_monetization.canAccess(PremiumFeature.deepCouncilSimulation) &&
+                            !await _ensurePremium()) {
+                          return;
+                        }
+                        if (!mounted) return;
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const InnerSimulationScreen()));
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.withAlpha(77),
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                      ),
+                      child: Text(_monetization.isPremium ? 'Ask Council' : 'Ask Council (Premium)'),
+                    ),
+                    const SizedBox(height: 40), // Replaced Spacer with a SizedBox for defined spacing
+                    if (egos.isNotEmpty) _buildBalanceVisualization(context, egos),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const AdviceScreen()),
+                            );
+                          },
+                          icon: const Icon(Icons.replay, size: 16),
+                          label: const Text('Ranking'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.amber,
+                            side: const BorderSide(color: Colors.amber),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const HistoryScreen()),
+                            );
+                          },
+                          icon: const Icon(Icons.show_chart, size: 16),
+                          label: Text(_monetization.isPremium ? 'Evolution' : 'Evolution (Limited)'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.amber,
+                            side: const BorderSide(color: Colors.amber),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20), // Added padding at the bottom for better scroll aesthetics
+                  ],
+                ),
               ),
+            );
+          },
+        ),
       ),
     );
   }
+
 
   String _quickAdvice(String egoName) {
     final id = identityIdFromAny(egoName) ?? IdentityId.shadow;
@@ -190,5 +232,61 @@ class _HomePageState extends State<HomePage> {
       intensity: 'low',
       seed: DateTime.now().weekday,
     );
+  }
+
+  Widget _buildBalanceVisualization(BuildContext context, List<AlterEgo> egos) {
+    return Center(
+      child: Column(
+        children: [
+          Text(
+            "Alter Ego Balance",
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white70),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            height: 100,
+            padding: const EdgeInsets.all(8.0),
+            decoration: BoxDecoration(
+              color: Colors.white10,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: egos.map((ego) {
+                return Expanded(
+                  flex: (ego.leaning * 100).toInt(),
+                  child: Tooltip(
+                    message: '${ego.name}: ${(ego.leaning * 100).toInt()}%',
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 500),
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      decoration: BoxDecoration(
+                        color: _getColorForEgo(ego.name),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getColorForEgo(String egoName) {
+    switch (egoName) {
+      case 'The Strategist': return Colors.blue.withValues(alpha:0.8);
+      case 'The Rebel': return Colors.red.withValues(alpha:0.8);
+      case 'The Caretaker': return Colors.green.withValues(alpha:0.8);
+      case 'The Shadow': return Colors.purple.withValues(alpha:0.8);
+      case 'The Achiever': return Colors.orange.withValues(alpha:0.8);
+      case 'The Romantic': return Colors.pink.withValues(alpha:0.8);
+      case 'The Protector': return Colors.teal.withValues(alpha:0.8);
+      case 'The Analyst': return Colors.indigo.withValues(alpha:0.8);
+      case 'The Escapist': return Colors.blueGrey.withValues(alpha:0.8);
+
+      default: return Colors.grey;
+    }
   }
 }
