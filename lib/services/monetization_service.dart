@@ -1,6 +1,7 @@
 import 'dart:async';
-
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
+import 'package:in_app_purchase_storekit/store_kit_wrappers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum PremiumFeature {
@@ -109,6 +110,25 @@ class MonetizationService {
   int applyHistoryLimit(int count) => _isPremium ? count : (count > 7 ? 7 : count);
 
   int applyCouncilDepthLimit(int count) => _isPremium ? count : (count > 2 ? 2 : count);
+
+  String getSubscriptionPeriodText(ProductDetails product) {
+    String? periodText;
+
+    if (product is AppStoreProductDetails) {
+      final SKProductSubscriptionPeriodWrapper? period = product.skProduct.subscriptionPeriod;
+      if (period != null) {
+        final numberOfUnits = period.numberOfUnits;
+        final unitText = switch (period.unit) {
+          SKSubscriptionPeriodUnit.day => numberOfUnits == 1 ? 'day' : 'days',
+          SKSubscriptionPeriodUnit.week => numberOfUnits == 1 ? 'week' : 'weeks',
+          SKSubscriptionPeriodUnit.month => numberOfUnits == 1 ? 'month' : 'months',
+          SKSubscriptionPeriodUnit.year => numberOfUnits == 1 ? 'year' : 'years',
+        };
+        periodText = numberOfUnits == 1 ? '/ $unitText' : '/ $numberOfUnits $unitText';
+      }
+    }
+    return periodText ?? '';
+  }
 
   Future<void> _handlePurchaseUpdates(List<PurchaseDetails> purchases) async {
     for (final purchase in purchases) {
