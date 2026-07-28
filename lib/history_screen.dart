@@ -1,7 +1,5 @@
 import 'package:alter_ego/alter_ego.dart';
 import 'package:alter_ego/alter_ego_service.dart';
-import 'package:alter_ego/paywall_screen.dart';
-import 'package:alter_ego/services/monetization_service.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -18,7 +16,6 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   late Future<List<AlterEgoSnapshot>> _historyFuture;
   final _alterEgoService = AlterEgoService();
-  final _monetization = MonetizationService.instance;
   int? touchedIndex;
 
   @override

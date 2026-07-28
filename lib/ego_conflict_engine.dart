@@ -4,12 +4,14 @@ import 'package:alter_ego/models/identity.dart';
 
 class EgoConflictEngine {
   static const _tags = {
-    'fear': ['fear', 'anxious', 'scared', 'panic', 'afraid'],
-    'authority': ['boss', 'manager', 'authority', 'rules', 'control'],
-    'love': ['relationship', 'love', 'dating', 'partner', 'heart'],
-    'risk': ['risk', 'chance', 'gamble', 'quit', 'move'],
-    'boundaries': ['boundary', 'no', 'drained', 'used', 'respect'],
-    'guilt': ['guilt', 'ashamed', 'regret', 'sorry', 'failed'],
+    'fear': ['fear', 'anxious', 'scared', 'panic', 'afraid', 'worry'],
+    'authority': ['boss', 'manager', 'authority', 'rules', 'control', 'work'],
+    'love': ['relationship', 'love', 'dating', 'partner', 'heart', 'ex'],
+    'risk': ['risk', 'chance', 'gamble', 'quit', 'move', 'start'],
+    'boundaries': ['boundary', 'no', 'drained', 'used', 'respect', 'limit'],
+    'guilt': ['guilt', 'ashamed', 'regret', 'sorry', 'failed', 'mistake'],
+    'growth': ['improve', 'learn', 'grow', 'better', 'future', 'goal'],
+    'money': ['money', 'finance', 'cost', 'spend', 'budget', 'debt'],
   };
 
   static List<EgoConflict> generate(String situation) {

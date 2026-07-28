@@ -166,7 +166,7 @@ class _HomePageState extends State<HomePage> {
                             !await _ensurePremium()) {
                           return;
                         }
-                        if (!mounted) return;
+                        if (!context.mounted) return;
                         Navigator.push(context, MaterialPageRoute(builder: (_) => const InnerSimulationScreen()));
                       },
                       style: ElevatedButton.styleFrom(

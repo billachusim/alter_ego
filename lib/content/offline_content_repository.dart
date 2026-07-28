@@ -213,10 +213,16 @@ class OfflineContentRepository {
     required String situationType,
     required String intensity,
     int seed = 0,
+    String? historyHint,
   }) {
     final pool = buildCouncilReplies().where((r) => r.identity == identity && r.situationType == situationType && r.intensity == intensity).toList();
     if (pool.isEmpty) return 'Stay honest with yourself. Small clear moves beat dramatic swings.';
-    return pool[seed % pool.length].text;
+    
+    final base = pool[seed % pool.length].text;
+    if (historyHint != null && historyHint.isNotEmpty) {
+      return '$historyHint\n\n$base';
+    }
+    return base;
   }
 
   static List<String> notificationPrompts() {
@@ -235,8 +241,119 @@ class OfflineContentRepository {
   }
 
   static String _line(String ego, String s, String level, int i) {
-    return switch ('$ego|$s|$level|$i') {
-      _ => '$ego says: in $s mode ($level), choose the move that protects your future self, not just your current mood.'
+    final Map<String, Map<String, List<String>>> vault = {
+      'Strategist': {
+        'decision': [
+          'Calculate the opportunity cost of delay. Choose now.',
+          'Your first instinct was likely the most efficient. Run with it.',
+          'Map the three steps following this move. If they hold, proceed.',
+        ],
+        'conflict': [
+          'Neutralize the emotion. What is the win-condition here?',
+          'Pause. Don\'t move until the board is clear.',
+          'Identify the pattern in their pushback. Use it to adjust.',
+        ],
+      },
+      'Rebel': {
+        'decision': [
+          'Choose the path that preserves your freedom of movement.',
+          'They expect you to go left. What happens if you go right?',
+          'If this choice feels like a cage, it probably is. Exit.',
+        ],
+        'conflict': [
+          'Compliance is a slow poison. Say the "no" that is stuck in your throat.',
+          'Verify if you are resisting for truth or just for the sake of friction.',
+          'Let them see the fire. It sets the boundary they can\'t ignore.',
+        ],
+      },
+      'Caretaker': {
+        'decision': [
+          'Include yourself in the circle of people you care for today.',
+          'If you say yes to this, what are you saying no to for yourself?',
+          'Heavy choices need soft landing. Who can help you carry this?',
+        ],
+        'conflict': [
+          'Resentment is the ghost of unspoken needs. Speak them now.',
+          'You can be kind without being a carpet. Stand up slowly.',
+          'Their discomfort is not your failure. Let them hold their own weight.',
+        ],
+      },
+      'Achiever': {
+        'decision': [
+          'Stop planning and start shipping. Momentum is your fuel.',
+          'Does this move result in progress or just "busy-ness"? Choose progress.',
+          'Set a timer. Make the call. The quality will follow the action.',
+        ],
+        'conflict': [
+          'Don\'t let friction slow your output. Solve it fast and keep moving.',
+          'Your worth isn\'t the result of this argument. Focus on the goal.',
+          'Is this conflict a distraction or a roadblock? Treat it accordingly.',
+        ],
+      },
+      'Romantic': {
+        'decision': [
+          'Seek the choice that feels most honest, even if it\'s harder.',
+          'What is the story you want to tell about this moment later?',
+          'Depth over speed. Let the choice breathe for a second.',
+        ],
+        'conflict': [
+          'Say the vulnerable thing first. It changes the frequency of the fight.',
+          'You are looking for meaning where there might just be noise.',
+          'Don\'t idealize their silence. Ask for the truth directly.',
+        ],
+      },
+      'Protector': {
+        'decision': [
+          'Is your perimeter safe? Only then can you choose the risk.',
+          'Protect the parts of you that are still growing. Choose safety today.',
+          'Trust your threat detection, but verify if the danger is current or old.',
+        ],
+        'conflict': [
+          'You don\'t need to bark to show you have teeth. Calmly state the limit.',
+          'Is this worth the energy of a siege? Pick your battles.',
+          'Someone is pushing. Lean back and let them fall into the space.',
+        ],
+      },
+      'Analyst': {
+        'decision': [
+          'Strip the emotion away. What do the facts actually say?',
+          'You have enough data. The remaining uncertainty is just life.',
+          'Categorize this choice: is it reversible? If yes, go fast.',
+        ],
+        'conflict': [
+          'They are reacting, not arguing facts. Don\'t get caught in the loop.',
+          'Map the logic of their stance. It helps you stay detached and clear.',
+          'Your silence is a tool. Use it to let them reveal their hand.',
+        ],
+      },
+      'Escapist': {
+        'decision': [
+          'Don\'t hide from the choice. It will only be heavier tomorrow.',
+          'Take one tiny, real step before you seek comfort.',
+          'Is this relief or just postponement? Be honest.',
+        ],
+        'conflict': [
+          'Numbing out won\'t solve the friction. Stay in the room for five more minutes.',
+          'The conflict feels loud, but you are bigger than the noise.',
+          'Don\'t laugh it off. The truth deserves a serious moment.',
+        ],
+      },
+      'Shadow': {
+        'decision': [
+          'Admit the "selfish" reason you want this. Once it\'s named, you can choose.',
+          'The hunger you feel won\'t be satisfied by this choice. Look deeper.',
+          'Stop being indirect. What do you actually want to happen?',
+        ],
+        'conflict': [
+          'Your cynicism is a shield. Put it down and say what hurts.',
+          'Don\'t manipulate. Just ask. The power is in the directness.',
+          'You are seeing their shadow. Don\'t forget to track your own too.',
+        ],
+      },
     };
+
+    final egoMap = vault[ego] ?? {};
+    final list = egoMap[s] ?? egoMap['decision'] ?? ['$ego says: protect your future self.'];
+    return list[i % list.length];
   }
 }

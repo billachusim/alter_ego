@@ -4,6 +4,7 @@ class AppSettingsService {
   static const _onboardedKey = 'hasOnboarded';
   static const _nicknameKey = 'nickname';
   static const _recentQuestionIds = 'recentQuestionIds';
+  static const _firstLaunchKey = 'firstLaunchDate';
 
   Future<bool> hasOnboarded() async {
     final prefs = await SharedPreferences.getInstance();
@@ -33,10 +34,21 @@ class AppSettingsService {
   Future<void> rememberQuestionIds(List<String> ids, {int keep = 120}) async {
     final prefs = await SharedPreferences.getInstance();
     final existing = prefs.getStringList(_recentQuestionIds) ?? [];
-    final merged = [...existing, ...ids].toSet().toList();
+    final merged = {...existing, ...ids}.toList();
     if (merged.length > keep) {
       merged.removeRange(0, merged.length - keep);
     }
     await prefs.setStringList(_recentQuestionIds, merged);
+  }
+
+  Future<DateTime?> firstLaunchDate() async {
+    final prefs = await SharedPreferences.getInstance();
+    final iso = prefs.getString(_firstLaunchKey);
+    return iso != null ? DateTime.parse(iso) : null;
+  }
+
+  Future<void> setFirstLaunchDate(DateTime date) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_firstLaunchKey, date.toIso8601String());
   }
 }

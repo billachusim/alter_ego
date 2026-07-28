@@ -1,6 +1,7 @@
 import 'package:alter_ego/alter_ego.dart';
 import 'package:alter_ego/alter_ego_service.dart';
 import 'package:alter_ego/content/offline_content_repository.dart';
+import 'package:alter_ego/main.dart';
 import 'package:alter_ego/models/identity.dart';
 import 'package:alter_ego/paywall_screen.dart';
 import 'package:alter_ego/question.dart';
@@ -103,7 +104,7 @@ class _AlterEgoScreenState extends State<AlterEgoScreen> {
                     child: const Text('Unlock Premium Insights'),
                   ),
                 ElevatedButton(
-                  onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                  onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePage())),
                   child: const Text('Continue'),
                 ),
               ],

@@ -2,6 +2,7 @@ import 'package:alter_ego/alter_ego.dart';
 import 'package:alter_ego/alter_ego_service.dart';
 import 'package:alter_ego/content/offline_content_repository.dart';
 import 'package:alter_ego/models/identity.dart';
+import 'package:alter_ego/services/insight_service.dart';
 import 'package:flutter/material.dart';
 
 class AdviceScreen extends StatefulWidget {
@@ -12,14 +13,15 @@ class AdviceScreen extends StatefulWidget {
 }
 
 class _AdviceScreenState extends State<AdviceScreen> with SingleTickerProviderStateMixin {
-  late Future<List<AlterEgo>> _councilFuture;
+  late Future<List<Map<String, dynamic>>> _councilFuture;
   final _alterEgoService = AlterEgoService();
+  final _insightService = InsightService();
   late AnimationController _animationController;
 
   @override
   void initState() {
     super.initState();
-    _councilFuture = _loadCouncil();
+    _councilFuture = _loadCouncilWithInsights();
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
@@ -33,21 +35,33 @@ class _AdviceScreenState extends State<AdviceScreen> with SingleTickerProviderSt
     super.dispose();
   }
 
-  Future<List<AlterEgo>> _loadCouncil() async {
+  Future<List<Map<String, dynamic>>> _loadCouncilWithInsights() async {
     final egos = await _alterEgoService.loadAlterEgos();
     egos.sort((a, b) => b.leaning.compareTo(a.leaning));
-    return egos.take(3).toList();
+    final top3 = egos.take(3).toList();
+
+    final results = <Map<String, dynamic>>[];
+    for (var ego in top3) {
+      final id = identityIdFromAny(ego.name) ?? IdentityId.shadow;
+      final hint = await _insightService.getPatternHint(id);
+      results.add({
+        'ego': ego,
+        'id': id,
+        'hint': hint,
+      });
+    }
+    return results;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Alter Ego Leanings'),
+        title: const Text('Council Feedback'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
-        child: FutureBuilder<List<AlterEgo>>(
+        child: FutureBuilder<List<Map<String, dynamic>>>(
           future: _councilFuture,
           builder: (context, snapshot) {
             if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
@@ -57,13 +71,17 @@ class _AdviceScreenState extends State<AdviceScreen> with SingleTickerProviderSt
             return ListView.builder(
               itemCount: council.length,
               itemBuilder: (context, index) {
-                final ego = council[index];
-                final id = identityIdFromAny(ego.name) ?? IdentityId.shadow;
+                final item = council[index];
+                final ego = item['ego'] as AlterEgo;
+                final id = item['id'] as IdentityId;
+                final hint = item['hint'] as String?;
+                
                 final advice = OfflineContentRepository.pickReply(
                   identity: id,
                   situationType: 'decision',
                   intensity: 'medium',
-                  seed: DateTime.now().day,
+                  seed: DateTime.now().day + ego.leaning.hashCode,
+                  historyHint: hint,
                 );
                 return FadeTransition(
                   opacity: _animationController.drive(CurveTween(curve: Curves.easeIn)),
