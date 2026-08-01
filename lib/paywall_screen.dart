@@ -137,6 +137,12 @@ class _PaywallScreenState extends State<PaywallScreen> {
                       child: Text('Subscribe: ${p.title} — ${p.price}'),
                     ),
                   )),
+            const SizedBox(height: 8),
+            const Text(
+              'Payment will be charged to your iTunes account at confirmation of purchase. Subscriptions automatically renew unless auto-renew is turned off at least 24 hours before the end of the current period. Manage subscriptions in your iTunes Account Settings.',
+              style: TextStyle(fontSize: 10, color: Colors.white54),
+              textAlign: TextAlign.center,
+            ),
             const Spacer(),
             OutlinedButton(
               onPressed: _restore,
@@ -158,7 +164,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                 const Text('|', style: TextStyle(color: Colors.grey)),
                 TextButton(
                   onPressed: _launchAppleEULA,
-                  child: const Text('Apple EULA', style: TextStyle(fontSize: 10)),
+                  child: const Text('Apple Standard EULA', style: TextStyle(fontSize: 10)),
                 ),
               ],
             ),
