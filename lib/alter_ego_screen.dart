@@ -6,6 +6,10 @@ import 'package:alter_ego/models/identity.dart';
 import 'package:alter_ego/paywall_screen.dart';
 import 'package:alter_ego/question.dart';
 import 'package:alter_ego/services/monetization_service.dart';
+import 'package:alter_ego/services/review_service.dart';
+import 'package:alter_ego/services/app_settings_service.dart';
+import 'package:alter_ego/services/share_service.dart';
+import 'package:alter_ego/widgets/shareable_identity_card.dart';
 import 'package:flutter/material.dart';
 
 class AlterEgoScreen extends StatefulWidget {
@@ -21,17 +25,34 @@ class _AlterEgoScreenState extends State<AlterEgoScreen> {
   late Future<List<AlterEgo>> _alterEgosFuture;
   final _alterEgoService = AlterEgoService();
   final _monetization = MonetizationService.instance;
+  final _shareKey = GlobalKey();
+  String _nickname = 'friend';
 
   @override
   void initState() {
     super.initState();
     _alterEgosFuture = _calculateAndSaveAlterEgos(widget.answers);
+    _loadNickname();
+  }
+
+  Future<void> _loadNickname() async {
+    final n = await AppSettingsService().nickname();
+    if (n != null) setState(() => _nickname = n);
   }
 
   Future<List<AlterEgo>> _calculateAndSaveAlterEgos(List<Answer> answers) async {
     final existingEgos = await _alterEgoService.loadAlterEgos();
     final newEgos = _calculateAlterEgos(answers, existingEgos);
     await _alterEgoService.saveAlterEgos(newEgos);
+    
+    // Check for Review
+    final settings = AppSettingsService();
+    await settings.incrementCheckInCount();
+    final count = await settings.checkInCount();
+    if (count == 3) {
+      ReviewService.requestReview();
+    }
+    
     return newEgos;
   }
 
@@ -68,6 +89,15 @@ class _AlterEgoScreenState extends State<AlterEgoScreen> {
     }).toList();
   }
 
+  Future<void> _shareIdentity(List<AlterEgo> egos) async {
+    await ShareService.captureAndShare(
+      context,
+      _shareKey,
+      text: 'My mind is currently mapping into ${egos.first.name}. 100% private self-discovery.',
+      subject: 'My Alter Ego Identity',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -81,34 +111,62 @@ class _AlterEgoScreenState extends State<AlterEgoScreen> {
           final egos = (snapshot.data ?? [])..sort((a, b) => b.leaning.compareTo(a.leaning));
           final visible = egos.take(_monetization.applyIdentityLimit(egos.length)).toList();
 
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                const Text('These are your active voices today.', style: TextStyle(fontSize: 17, color: Colors.white70)),
-                if (!_monetization.isPremium)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 8),
-                    child: Text('Free tier: top 3 identities shown. Premium unlocks full map + shadow analysis.', style: TextStyle(color: Colors.amber)),
-                  ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: visible.length,
-                    itemBuilder: (context, index) => _voiceCard(visible[index]),
-                  ),
+          return Stack(
+            children: [
+              // "Off-Stage Paint" to avoid debugNeedsPaint errors
+              Positioned(
+                top: -2000,
+                left: 0,
+                child: RepaintBoundary(
+                  key: _shareKey,
+                  child: ShareableIdentityCard(egos: visible, nickname: _nickname),
                 ),
-                if (!_monetization.isPremium)
-                  OutlinedButton(
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaywallScreen())),
-                    child: const Text('Unlock Premium Insights'),
-                  ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePage())),
-                  child: const Text('Continue'),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    const Text('These are your active voices today.', style: TextStyle(fontSize: 17, color: Colors.white70)),
+                    if (!_monetization.isPremium)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: Text('Free tier: top 3 identities shown. Premium unlocks full map + shadow analysis.', style: TextStyle(color: Colors.amber)),
+                      ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: visible.length,
+                        itemBuilder: (context, index) => _voiceCard(visible[index]),
+                      ),
+                    ),
+                    if (!_monetization.isPremium)
+                      OutlinedButton(
+                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaywallScreen())),
+                        child: const Text('Unlock Premium Insights'),
+                      ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _shareIdentity(visible),
+                            icon: const Icon(Icons.share, size: 18),
+                            label: const Text('Share My Identity'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePage())),
+                            child: const Text('Continue'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           );
         },
       ),

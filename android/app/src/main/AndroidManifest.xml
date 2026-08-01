@@ -2,6 +2,12 @@
     <!-- REQUIRED for ElevenLabs + API calls -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!-- REQUIRED for Voice Input (Speech-to-Text) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
     <!-- Improves streaming stability -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <application

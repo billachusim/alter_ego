@@ -5,6 +5,10 @@ class AppSettingsService {
   static const _nicknameKey = 'nickname';
   static const _recentQuestionIds = 'recentQuestionIds';
   static const _firstLaunchKey = 'firstLaunchDate';
+  static const _checkInCountKey = 'checkInCount';
+  static const _hasWatchedReplayKey = 'hasWatchedReplay';
+  static const _notificationEnabledKey = 'notificationEnabled';
+  static const _notificationHourKey = 'notificationHour';
 
   Future<bool> hasOnboarded() async {
     final prefs = await SharedPreferences.getInstance();
@@ -50,5 +54,46 @@ class AppSettingsService {
   Future<void> setFirstLaunchDate(DateTime date) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_firstLaunchKey, date.toIso8601String());
+  }
+
+  Future<int> checkInCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_checkInCountKey) ?? 0;
+  }
+
+  Future<void> incrementCheckInCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final current = prefs.getInt(_checkInCountKey) ?? 0;
+    await prefs.setInt(_checkInCountKey, current + 1);
+  }
+
+  Future<bool> hasWatchedReplay() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_hasWatchedReplayKey) ?? false;
+  }
+
+  Future<void> setHasWatchedReplay(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_hasWatchedReplayKey, value);
+  }
+
+  Future<bool> notificationsEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_notificationEnabledKey) ?? true;
+  }
+
+  Future<void> setNotificationsEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_notificationEnabledKey, value);
+  }
+
+  Future<int> notificationHour() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_notificationHourKey) ?? 20; // Default 8 PM
+  }
+
+  Future<void> setNotificationHour(int hour) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_notificationHourKey, hour);
   }
 }

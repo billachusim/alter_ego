@@ -3,6 +3,8 @@ import 'package:alter_ego/content/offline_content_repository.dart';
 import 'package:alter_ego/question.dart';
 import 'package:alter_ego/services/app_settings_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class QuestionScreen extends StatefulWidget {
   const QuestionScreen({super.key});
@@ -36,6 +38,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
   }
 
   Future<void> _answerQuestion(Answer answer) async {
+    HapticFeedback.mediumImpact();
     _answers.add(answer);
     if (_questionIndex < _questions.length - 1) {
       setState(() {
@@ -59,38 +62,67 @@ class _QuestionScreenState extends State<QuestionScreen> {
     final currentQuestion = _questions[_questionIndex];
 
     return Scaffold(
-      appBar: AppBar(title: Text('Check-in (${_questionIndex + 1}/${_questions.length})')),
+      appBar: AppBar(
+        title: Text('Check-in (${_questionIndex + 1}/${_questions.length})'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24.0),
         child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const SizedBox(height: 20),
               Text(
                 currentQuestion.category.toUpperCase(),
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white60, letterSpacing: 2),
-              ),
-              const SizedBox(height: 12),
+                style: const TextStyle(color: Colors.white38, letterSpacing: 4, fontSize: 12, fontWeight: FontWeight.bold),
+              ).animate(key: ValueKey('cat_$_questionIndex')).fadeIn().slideY(begin: 0.2),
+              const SizedBox(height: 16),
               Text(
                 currentQuestion.text,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 30),
-              ...currentQuestion.answers.map((answer) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12.0),
-                    child: ElevatedButton(
-                      onPressed: () => _answerQuestion(answer),
-                      style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-                      child: Text(answer.text, textAlign: TextAlign.center),
-                    ),
-                  )),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, height: 1.3),
+              ).animate(key: ValueKey('q_$_questionIndex')).fadeIn(duration: 400.ms).slideY(begin: 0.1),
+              const SizedBox(height: 40),
+              ...currentQuestion.answers.asMap().entries.map((entry) {
+                final index = entry.key;
+                final answer = entry.value;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: _buildAnswerCard(answer, index),
+                );
+              }),
+              const SizedBox(height: 40),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildAnswerCard(Answer answer, int index) {
+    return GestureDetector(
+      onTap: () => _answerQuestion(answer),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white.withAlpha(10),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white10),
+        ),
+        child: Text(
+          answer.text,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
+        ),
+      ),
+    )
+        .animate(key: ValueKey('ans_${_questionIndex}_$index'))
+        .fadeIn(delay: (100 * index).ms, duration: 400.ms)
+        .slideX(begin: 0.05, curve: Curves.easeOut);
   }
 }

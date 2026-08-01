@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:alter_ego/ego_conflict.dart';
 import 'package:alter_ego/ego_voice_mapper.dart';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
@@ -16,21 +17,30 @@ class WhisperEngine {
 
   static Future<void> speakConflicts(List<EgoConflict> conflicts) async {
     if (!isConfigured) return;
-    for (final conflict in conflicts) {
-      final file = await _getOrCreateAudio(conflict);
-      await _player.setFilePath(file.path);
-      await _player.play();
-      /// tiny silence between voices
-      await Future.delayed(const Duration(milliseconds: 4000));
+    try {
+      for (final conflict in conflicts) {
+        final file = await _getOrCreateAudio(conflict);
+        await _player.setFilePath(file.path);
+        // Play and wait for it to finish
+        await _player.play();
+        // A short pause between different identities
+        await Future.delayed(const Duration(milliseconds: 3500));
+      }
+    } catch (e) {
+      debugPrint("WhisperEngine Error: $e");
     }
   }
 
   static Future<void> preloadConflicts(List<EgoConflict> conflicts) async {
     if (!isConfigured) return;
     for (final conflict in conflicts) {
-      await _getOrCreateAudio(conflict);
-      // Add a delay to avoid hitting the API rate limit
-      await Future.delayed(const Duration(milliseconds: 1200));
+      try {
+        await _getOrCreateAudio(conflict);
+        // Throttle preloads slightly
+        await Future.delayed(const Duration(milliseconds: 800));
+      } catch (e) {
+        debugPrint("Preload Error: $e");
+      }
     }
   }
 
@@ -56,9 +66,9 @@ class WhisperEngine {
       body: jsonEncode({
         'text': conflict.message,
         'voice_settings': {
-          'stability': 0.35,
-          'similarity_boost': 0.75,
-          'style': 0.6,
+          'stability': 0.4,
+          'similarity_boost': 0.8,
+          'style': 0.5,
           'use_speaker_boost': true,
         }
       }),

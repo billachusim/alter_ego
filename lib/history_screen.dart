@@ -1,5 +1,8 @@
 import 'package:alter_ego/alter_ego.dart';
 import 'package:alter_ego/alter_ego_service.dart';
+import 'package:alter_ego/services/app_settings_service.dart';
+import 'package:alter_ego/services/review_service.dart';
+import 'package:alter_ego/services/share_service.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -16,6 +19,7 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   late Future<List<AlterEgoSnapshot>> _historyFuture;
   final _alterEgoService = AlterEgoService();
+  final _shareKey = GlobalKey();
   int? touchedIndex;
 
   @override
@@ -31,6 +35,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         title: const Text('Your Evolution'),
+        actions: [
+          IconButton(
+            onPressed: () {
+              ShareService.captureAndShare(
+                context,
+                _shareKey,
+                text: 'Tracking my identity evolution over time. 100% private.',
+                subject: 'My Identity Evolution',
+              );
+            },
+            icon: const Icon(Icons.share, size: 20),
+          ),
+        ],
       ),
       body: FutureBuilder<List<AlterEgoSnapshot>>(
         future: _historyFuture,
@@ -45,24 +62,29 @@ class _HistoryScreenState extends State<HistoryScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-
-              _DominantEgoCard(egoName: dominant.first),
-
-              const SizedBox(height: 16),
-
-              _WeeklySummaryCard(
-                summary: _generateWeeklySummary(history),
-              ),
-
-              const SizedBox(height: 30),
-
-              SizedBox(
-                height: 320,
-                child: LineChart(
-                  _createChartData(history, dominant),
+              RepaintBoundary(
+                key: _shareKey,
+                child: Container(
+                  color: const Color(0xff0D0F14), // Ensure background for capture
+                  child: Column(
+                    children: [
+                      _DominantEgoCard(egoName: dominant.first),
+                      const SizedBox(height: 16),
+                      _WeeklySummaryCard(
+                        summary: _generateWeeklySummary(history),
+                      ),
+                      const SizedBox(height: 30),
+                      SizedBox(
+                        height: 320,
+                        child: LineChart(
+                          _createChartData(history, dominant),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-          const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
               if (touchedIndex != null)
                 _InsightCard(
@@ -76,15 +98,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
               ElevatedButton(
                 child: const Text("Watch Identity Replay"),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => IdentityReplayScreen(
-                        history: history,
+                onPressed: () async {
+                  final settings = AppSettingsService();
+                  final hasWatched = await settings.hasWatchedReplay();
+                  
+                  if (context.mounted) {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => IdentityReplayScreen(
+                          history: history,
+                        ),
                       ),
-                    ),
-                  );
+                    );
+                    
+                    if (!hasWatched) {
+                      await settings.setHasWatchedReplay(true);
+                      ReviewService.requestReview();
+                    }
+                  }
                 },
               ),
             ],
