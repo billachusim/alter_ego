@@ -23,11 +23,31 @@ import 'package:flutter_animate/flutter_animate.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final settings = AppSettingsService();
-  final hasOnboarded = await settings.hasOnboarded();
-  await MonetizationService.instance.init();
-  await NotificationService.instance.init();
-  await NotificationService.instance.syncNotifications();
+  bool hasOnboarded = false;
+  try {
+    hasOnboarded = await settings.hasOnboarded();
+  } catch (e) {
+    debugPrint('Onboarding flag read failed: $e');
+  }
+  // Show the UI first. Billing and notification setup used to run before
+  // runApp; if either threw or hung (e.g. exact alarms not permitted on
+  // Android 14+), no window was ever shown and Android reported an ANR.
   runApp(AlterEgoApp(hasOnboarded: hasOnboarded));
+  unawaited(_initServices());
+}
+
+Future<void> _initServices() async {
+  try {
+    await MonetizationService.instance.init().timeout(const Duration(seconds: 15));
+  } catch (e) {
+    debugPrint('Monetization init failed: $e');
+  }
+  try {
+    await NotificationService.instance.init();
+    await NotificationService.instance.syncNotifications();
+  } catch (e) {
+    debugPrint('Notification init failed: $e');
+  }
 }
 
 class AlterEgoApp extends StatelessWidget {
