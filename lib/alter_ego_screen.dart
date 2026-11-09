@@ -49,9 +49,7 @@ class _AlterEgoScreenState extends State<AlterEgoScreen> {
     final settings = AppSettingsService();
     await settings.incrementCheckInCount();
     final count = await settings.checkInCount();
-    if (count == 3) {
-      ReviewService.requestReview();
-    }
+    ReviewService.maybePromptAfterCheckIn(count);
     
     return newEgos;
   }

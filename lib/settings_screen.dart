@@ -1,5 +1,6 @@
 import 'package:alter_ego/services/app_settings_service.dart';
 import 'package:alter_ego/services/notification_service.dart';
+import 'package:alter_ego/services/review_service.dart';
 import 'package:alter_ego/services/share_service.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -85,6 +86,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             leading: const Icon(Icons.share),
             onTap: _shareApp,
           ),
+          ListTile(
+            title: const Text('Rate Alter Ego'),
+            subtitle: const Text('A quick rating helps others find the app.'),
+            leading: const Icon(Icons.star_outline),
+            onTap: ReviewService.openStore,
+          ),
           const Divider(),
           ListTile(
             title: const Text('Privacy Policy'),
@@ -97,7 +104,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 40),
           Center(
             child: Text(
-              'Alter Ego v1.5.0',
+              'Alter Ego v1.5.2',
               style: TextStyle(color: Colors.white24, fontSize: 12),
             ),
           ),
