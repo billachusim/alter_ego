@@ -5,6 +5,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import 'ego_conflict.dart';
 import 'alter_ego_service.dart';
+import 'services/app_settings_service.dart';
 import 'council/council_engine.dart';
 import 'models/identity.dart';
 
@@ -27,6 +28,8 @@ class _InnerSimulationScreenState extends State<InnerSimulationScreen>
   List<EgoConflict>? _conflicts;
   CouncilVerdict? _verdict;
   Map<IdentityId, double> _leanings = const {};
+  String? _nickname;
+  int _asks = 0;
   bool _isSimulating = false;
   bool _revealed = false;
 
@@ -53,7 +56,8 @@ class _InnerSimulationScreenState extends State<InnerSimulationScreen>
         final id = identityIdFromAny(e.name);
         if (id != null) map[id] = e.leaning.clamp(0.0, 1.0);
       }
-      if (mounted) setState(() => _leanings = map);
+      final nick = await AppSettingsService().nickname();
+      if (mounted) setState(() { _leanings = map; _nickname = nick; });
     } catch (e) {
       debugPrint('Could not load leanings: $e');
     }
@@ -66,6 +70,7 @@ class _InnerSimulationScreenState extends State<InnerSimulationScreen>
 
   @override
   void dispose() {
+    WhisperEngine.stop();
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -76,11 +81,15 @@ class _InnerSimulationScreenState extends State<InnerSimulationScreen>
       bool available = await _stt.initialize();
       if (available) {
         setState(() => _isListening = true);
-        _stt.listen(onResult: (val) {
-          setState(() {
-            _controller.text = val.recognizedWords;
-          });
-        });
+        _stt.listen(
+          // Recognise on the phone only, so speech never leaves the device.
+          listenOptions: stt.SpeechListenOptions(onDevice: true),
+          onResult: (val) {
+            setState(() {
+              _controller.text = val.recognizedWords;
+            });
+          },
+        );
       }
     } else {
       setState(() => _isListening = false);
@@ -102,7 +111,7 @@ class _InnerSimulationScreenState extends State<InnerSimulationScreen>
 
     try {
       await Future.delayed(const Duration(milliseconds: 800));
-      final result = CouncilEngine.consult(_controller.text.trim(), leanings: _leanings);
+      final result = CouncilEngine.consult(_controller.text.trim(), leanings: _leanings, nickname: _nickname, salt: _asks++);
       _conflicts = result.voices;
       _verdict = result.verdict;
 
@@ -349,6 +358,10 @@ class _InnerSimulationScreenState extends State<InnerSimulationScreen>
               Expanded(child: Text(verdict.nextStep, style: const TextStyle(fontSize: 16, height: 1.4, color: Colors.white, fontWeight: FontWeight.w600))),
             ],
           ),
+          if (verdict.truth != null) ...[
+            const SizedBox(height: 14),
+            Text('“${verdict.truth}”', style: const TextStyle(fontSize: 15, height: 1.5, color: Color(0xffE0D7FF))),
+          ],
           const SizedBox(height: 14),
           Text(verdict.reflection, style: const TextStyle(fontSize: 14, height: 1.4, color: Colors.white54, fontStyle: FontStyle.italic)),
         ],
