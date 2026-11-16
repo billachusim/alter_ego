@@ -8,7 +8,7 @@ import 'package:share_plus/share_plus.dart';
 class ShareService {
   static String get storeUrl {
     if (Platform.isAndroid) {
-      return 'https://play.google.com/store/apps/details?id=com.socialfaculty.eavesdrop';
+      return 'https://play.google.com/store/apps/details?id=com.socialfaculty.alter_ego';
     } else {
       return 'https://apps.apple.com/ng/app/alter-ego-know-all-yourselves/id6759404823';
     }
