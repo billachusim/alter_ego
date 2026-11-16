@@ -4,7 +4,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import 'ego_conflict.dart';
-import 'ego_conflict_engine.dart';
+import 'alter_ego_service.dart';
+import 'council/council_engine.dart';
 import 'models/identity.dart';
 
 class InnerSimulationScreen extends StatefulWidget {
@@ -24,6 +25,8 @@ class _InnerSimulationScreenState extends State<InnerSimulationScreen>
   bool _voicesEnabled = true;
   bool _isListening = false;
   List<EgoConflict>? _conflicts;
+  CouncilVerdict? _verdict;
+  Map<IdentityId, double> _leanings = const {};
   bool _isSimulating = false;
   bool _revealed = false;
 
@@ -39,6 +42,21 @@ class _InnerSimulationScreenState extends State<InnerSimulationScreen>
   void initState() {
     super.initState();
     _initSpeech();
+    _loadLeanings();
+  }
+
+  Future<void> _loadLeanings() async {
+    try {
+      final egos = await AlterEgoService().loadAlterEgos();
+      final map = <IdentityId, double>{};
+      for (final e in egos) {
+        final id = identityIdFromAny(e.name);
+        if (id != null) map[id] = e.leaning.clamp(0.0, 1.0);
+      }
+      if (mounted) setState(() => _leanings = map);
+    } catch (e) {
+      debugPrint('Could not load leanings: $e');
+    }
   }
 
   void _initSpeech() async {
@@ -84,7 +102,9 @@ class _InnerSimulationScreenState extends State<InnerSimulationScreen>
 
     try {
       await Future.delayed(const Duration(milliseconds: 800));
-      _conflicts = EgoConflictEngine.generate(_controller.text.trim());
+      final result = CouncilEngine.consult(_controller.text.trim(), leanings: _leanings);
+      _conflicts = result.voices;
+      _verdict = result.verdict;
 
       final preloadFuture = WhisperEngine.preloadConflicts(_conflicts!);
       await Future.delayed(const Duration(seconds: 1));
@@ -297,10 +317,43 @@ class _InnerSimulationScreenState extends State<InnerSimulationScreen>
     return ListView.builder(
       controller: _scrollController,
       physics: const BouncingScrollPhysics(),
-      itemCount: _conflicts!.length,
+      itemCount: _conflicts!.length + (_verdict == null ? 0 : 1),
       padding: const EdgeInsets.only(bottom: 40),
-      itemBuilder: (context, i) => _conflictBubble(_conflicts![i], i),
+      itemBuilder: (context, i) => i < _conflicts!.length
+          ? _conflictBubble(_conflicts![i], i)
+          : _verdictCard(_verdict!, i),
     );
+  }
+
+  Widget _verdictCard(CouncilVerdict verdict, int index) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0x336C5CE7), Color(0x228E7CFF)]),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0x666C5CE7)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('COUNCIL VERDICT', style: TextStyle(letterSpacing: 2, fontWeight: FontWeight.bold, color: Color(0xff8E7CFF), fontSize: 11)),
+          const SizedBox(height: 12),
+          Text(verdict.tension, style: const TextStyle(fontSize: 15, height: 1.5, color: Colors.white70)),
+          const SizedBox(height: 14),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.flag_outlined, size: 18, color: Color(0xff8E7CFF)),
+              const SizedBox(width: 8),
+              Expanded(child: Text(verdict.nextStep, style: const TextStyle(fontSize: 16, height: 1.4, color: Colors.white, fontWeight: FontWeight.w600))),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(verdict.reflection, style: const TextStyle(fontSize: 14, height: 1.4, color: Colors.white54, fontStyle: FontStyle.italic)),
+        ],
+      ),
+    ).animate().fadeIn(delay: (200 * index).ms).slideY(begin: 0.1);
   }
 
   Widget _conflictBubble(EgoConflict conflict, int index) {
@@ -328,6 +381,8 @@ class _InnerSimulationScreenState extends State<InnerSimulationScreen>
           ),
           const SizedBox(height: 12),
           Text(conflict.message, style: const TextStyle(fontSize: 16, height: 1.5, color: Colors.white)),
+          const SizedBox(height: 10),
+          Text(conflict.rationale, style: TextStyle(fontSize: 12, color: color.withAlpha(180))),
         ],
       ),
     ).animate().fadeIn(delay: (200 * index).ms).slideY(begin: 0.1);

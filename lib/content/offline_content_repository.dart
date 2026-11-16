@@ -168,9 +168,17 @@ class OfflineContentRepository {
     if (bank.isEmpty) return [];
     bank.shuffle(Random(day.year + day.month + day.day));
 
+    // The bank holds several copies of each prompt; keep one per prompt so a
+    // check-in never asks the same thing twice, and vary the answer order.
+    final seenText = <String>{};
+    final rng = Random(day.year * 1000 + day.month * 40 + day.day);
     final byCategory = <String, List<Question>>{};
     for (final q in bank) {
-      byCategory.putIfAbsent(q.category, () => []).add(q);
+      if (!seenText.add(q.text)) continue;
+      final answers = q.answers.toList()..shuffle(rng);
+      byCategory.putIfAbsent(q.category, () => []).add(
+            Question(id: q.id, category: q.category, text: q.text, answers: answers),
+          );
     }
 
     final selected = <Question>[];

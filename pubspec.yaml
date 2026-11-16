@@ -3,7 +3,7 @@ description: "The Alter Ego App"
 
 publish_to: 'none'
 
-version: 1.5.4+10
+version: 1.5.5+11
 
 environment:
   sdk: ^3.10.0
