@@ -35,7 +35,7 @@ class AppSettingsService {
     return (prefs.getStringList(_recentQuestionIds) ?? []).toSet();
   }
 
-  Future<void> rememberQuestionIds(List<String> ids, {int keep = 120}) async {
+  Future<void> rememberQuestionIds(List<String> ids, {int keep = 400}) async {
     final prefs = await SharedPreferences.getInstance();
     final existing = prefs.getStringList(_recentQuestionIds) ?? [];
     final merged = {...existing, ...ids}.toList();

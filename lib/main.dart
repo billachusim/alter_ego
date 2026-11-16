@@ -16,6 +16,11 @@ import 'package:alter_ego/services/notification_service.dart';
 import 'package:alter_ego/settings_screen.dart';
 import 'package:alter_ego/services/share_service.dart';
 import 'package:alter_ego/widgets/shareable_identity_card.dart';
+import 'package:alter_ego/services/game_service.dart';
+import 'package:alter_ego/widgets/mystic_background.dart';
+import 'package:alter_ego/widgets/omen_card.dart';
+import 'package:alter_ego/widgets/rank_bar.dart';
+import 'package:alter_ego/widgets/sigil.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -25,7 +30,8 @@ void main() async {
   final settings = AppSettingsService();
   bool hasOnboarded = false;
   try {
-    hasOnboarded = await settings.hasOnboarded().timeout(const Duration(seconds: 3));
+    hasOnboarded = await settings.hasOnboarded().timeout(const Duration(seconds: 3)) ||
+        const bool.fromEnvironment('SKIP_ONBOARDING'); // simulator screenshots only
   } catch (e) {
     debugPrint('Onboarding flag read failed: $e');
   }
@@ -87,6 +93,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<List<AlterEgo>>? _alterEgosFuture;
   String? _nickname;
+  GameState? _game;
 
   @override
   void initState() {
@@ -106,9 +113,12 @@ class _HomePageState extends State<HomePage> {
   Future<void> _loadData() async {
     final nickname = await _settings.nickname();
     final egos = _alterEgoService.loadAlterEgos();
+    final game = await GameService.instance.load();
+    if (!mounted) return;
     setState(() {
       _nickname = nickname;
       _alterEgosFuture = egos;
+      _game = game;
     });
   }
 
@@ -152,18 +162,28 @@ class _HomePageState extends State<HomePage> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         _buildHeader(),
+                        const SizedBox(height: 16),
+                        if (_game != null)
+                          RankBar(state: _game!, color: _auraFor(dominant)).animate().fadeIn().slideY(begin: -.1),
+                        const SizedBox(height: 16),
+                        _buildActionButtons(),
                         const SizedBox(height: 20),
-                        if (egos.isNotEmpty) _buildRadarChart(egos),
-                        const SizedBox(height: 24),
-                        _buildPrivacyBadge(),
-                        const SizedBox(height: 24),
+                        OmenCard(
+                          color: _auraFor(dominant),
+                          dominant: dominant == null ? null : identityIdFromAny(dominant.name),
+                          alreadyRevealed: _game?.omenRevealedToday ?? false,
+                          onRevealed: _refreshGame,
+                        ).animate().fadeIn(delay: 150.ms).scale(begin: const Offset(.96, .96)),
+                        const SizedBox(height: 20),
                         if (dominant != null) _buildDominantEgoCard(dominant, visibleEgos),
                         const SizedBox(height: 20),
-                        _buildActionButtons(),
-                        const SizedBox(height: 30),
+                        if (egos.isNotEmpty) _buildRadarChart(egos),
+                        const SizedBox(height: 20),
                         if (egos.isNotEmpty) _buildBalanceVisualization(context, egos),
                         const SizedBox(height: 30),
                         _buildSecondaryActions(),
+                        const SizedBox(height: 20),
+                        Center(child: _buildPrivacyBadge()),
                         const SizedBox(height: 40),
                       ],
                     ),
@@ -254,7 +274,7 @@ class _HomePageState extends State<HomePage> {
         children: [
           Icon(Icons.lock_outline, size: 14, color: Colors.greenAccent),
           SizedBox(width: 8),
-          Text('Zero-Cloud Evaluation: Secure & Local',
+          Text('Private: everything stays on this phone',
               style: TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.w600)),
         ],
       ),
@@ -267,12 +287,13 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Text(dominant.icon, style: const TextStyle(fontSize: 32)),
+            Sigil(glyph: dominant.icon, color: _getColorForEgo(dominant.name), size: 64),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const Text('YOUR RULING VOICE', style: TextStyle(fontSize: 10, letterSpacing: 2.5, color: Colors.white38)),
                   Text(dominant.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   Text(_quickAdvice(dominant.name),
                       style: const TextStyle(color: Colors.white70, fontStyle: FontStyle.italic)),
@@ -310,12 +331,17 @@ class _HomePageState extends State<HomePage> {
             padding: const EdgeInsets.symmetric(vertical: 18),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.calendar_today_outlined, size: 18),
-              SizedBox(width: 12),
-              Text('Daily Check-in', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Icon((_game?.checkedInToday ?? false) ? Icons.check_circle_outline : Icons.auto_awesome, size: 18),
+              const SizedBox(width: 12),
+              Text((_game?.checkedInToday ?? false) ? 'Check in again' : 'Daily Check-in',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              if (!(_game?.checkedInToday ?? false)) ...[
+                const SizedBox(width: 10),
+                const Text('+${GameService.checkInXp} ✦', style: TextStyle(fontSize: 13, color: Color(0xffB9A8FF), fontWeight: FontWeight.bold)),
+              ],
             ],
           ),
         ),
@@ -326,7 +352,8 @@ class _HomePageState extends State<HomePage> {
               return;
             }
             if (!mounted) return;
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const InnerSimulationScreen()));
+            await Navigator.push(context, MaterialPageRoute(builder: (_) => const InnerSimulationScreen()));
+            _refreshGame();
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.blueAccent.withAlpha(50),
@@ -407,27 +434,20 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildDynamicBackground(AlterEgo? dominant) {
-    final color = dominant != null ? _getColorForEgo(dominant.name).withAlpha(40) : Colors.transparent;
-    return AnimatedContainer(
-      duration: 1.seconds,
-      decoration: BoxDecoration(
-        gradient: RadialGradient(
-          center: Alignment.topRight,
-          radius: 1.5,
-          colors: [color, const Color(0xFF101217)],
-        ),
-      ),
-    );
+    return Positioned.fill(child: MysticBackground(aura: _auraFor(dominant)));
+  }
+
+  Color _auraFor(AlterEgo? dominant) =>
+      dominant == null ? const Color(0xff6C5CE7) : _getColorForEgo(dominant.name);
+
+  Future<void> _refreshGame() async {
+    final game = await GameService.instance.load();
+    if (mounted) setState(() => _game = game);
   }
 
   String _quickAdvice(String egoName) {
     final id = identityIdFromAny(egoName) ?? IdentityId.shadow;
-    return OfflineContentRepository.pickReply(
-      identity: id,
-      situationType: 'decision',
-      intensity: 'low',
-      seed: DateTime.now().weekday,
-    );
+    return OfflineContentRepository.profilesById[id]!.growthCue;
   }
 
   Widget _buildBalanceVisualization(BuildContext context, List<AlterEgo> egos) {

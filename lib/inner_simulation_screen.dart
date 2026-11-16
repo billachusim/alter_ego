@@ -1,11 +1,16 @@
 import 'package:alter_ego/whisper_engine.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import 'ego_conflict.dart';
 import 'alter_ego_service.dart';
 import 'services/app_settings_service.dart';
+import 'services/game_service.dart';
+import 'widgets/mystic_background.dart';
+import 'widgets/reward_overlay.dart';
+import 'widgets/sigil.dart';
 import 'council/council_engine.dart';
 import 'models/identity.dart';
 
@@ -36,15 +41,23 @@ class _InnerSimulationScreenState extends State<InnerSimulationScreen>
   final List<String> _prompts = [
     "Should I take the risk?",
     "Why do I feel stuck?",
-    "Is this the right path?",
+    "Should I quit my job?",
+    "I feel anxious lately",
+    "How do I stop overthinking?",
+    "Is this relationship right for me?",
+    "Why do I keep procrastinating?",
+    "I feel lonely",
+    "Should I move abroad?",
     "Am I being too hard on myself?",
-    "What am I missing?",
+    "How do I set boundaries with family?",
+    "What is my purpose?",
   ];
 
   @override
   void initState() {
     super.initState();
-    _initSpeech();
+    _prompts.shuffle();
+    // Speech permission is asked only when the mic is tapped.
     _loadLeanings();
   }
 
@@ -61,11 +74,6 @@ class _InnerSimulationScreenState extends State<InnerSimulationScreen>
     } catch (e) {
       debugPrint('Could not load leanings: $e');
     }
-  }
-
-  void _initSpeech() async {
-    await _stt.initialize();
-    setState(() {});
   }
 
   @override
@@ -122,6 +130,12 @@ class _InnerSimulationScreenState extends State<InnerSimulationScreen>
         _isSimulating = false;
         _revealed = true;
       });
+      HapticFeedback.mediumImpact();
+      if (_asks <= 3) {
+        GameService.instance.recordCouncil().then((reward) {
+          if (mounted) RewardOverlay.show(context, reward, color: const Color(0xff8E7CFF), title: 'Council consulted');
+        });
+      }
 
       await preloadFuture;
       await Future.delayed(const Duration(milliseconds: 500));
@@ -156,13 +170,8 @@ class _InnerSimulationScreenState extends State<InnerSimulationScreen>
         backgroundColor: const Color(0xff0B0D12),
         body: Stack(
           children: [
-            Container(
-              decoration: const BoxDecoration(
-                gradient: RadialGradient(
-                  colors: [Color(0xff1B1F2B), Color(0xff0B0D12)],
-                  radius: 1.2,
-                ),
-              ),
+            Positioned.fill(
+              child: MysticBackground(aura: _isSpeaking ? Colors.pinkAccent : (_isSimulating ? Colors.cyanAccent : const Color(0xff6C5CE7))),
             ),
             SafeArea(
               child: Padding(
@@ -171,9 +180,13 @@ class _InnerSimulationScreenState extends State<InnerSimulationScreen>
                   children: [
                     const SizedBox(height: 20),
                     _buildTopBar(),
-                    const SizedBox(height: 40),
-                    _buildOrb(),
-                    const SizedBox(height: 40),
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 500),
+                      curve: Curves.easeInOutCubic,
+                      child: _revealed
+                          ? const SizedBox(height: 8)
+                          : Column(children: [const SizedBox(height: 30), _buildOrb(), const SizedBox(height: 30)]),
+                    ),
                     _buildThoughtField(),
                     const SizedBox(height: 16),
                     _buildPromptsStrip(),
@@ -217,6 +230,16 @@ class _InnerSimulationScreenState extends State<InnerSimulationScreen>
     if (_isSimulating) orbColor = Colors.cyanAccent;
     if (_isSpeaking) orbColor = Colors.pinkAccent;
 
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Sigil(glyph: '', color: orbColor, size: 190),
+        _orbCore(orbColor),
+      ],
+    );
+  }
+
+  Widget _orbCore(Color orbColor) {
     return Container(
       height: 120,
       width: 120,

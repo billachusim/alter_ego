@@ -10,7 +10,12 @@ import 'package:alter_ego/services/review_service.dart';
 import 'package:alter_ego/services/app_settings_service.dart';
 import 'package:alter_ego/services/share_service.dart';
 import 'package:alter_ego/widgets/shareable_identity_card.dart';
+import 'package:alter_ego/services/game_service.dart';
+import 'package:alter_ego/widgets/mystic_background.dart';
+import 'package:alter_ego/widgets/reward_overlay.dart';
+import 'package:alter_ego/widgets/sigil.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class AlterEgoScreen extends StatefulWidget {
   final List<Answer> answers;
@@ -50,7 +55,14 @@ class _AlterEgoScreenState extends State<AlterEgoScreen> {
     await settings.incrementCheckInCount();
     final count = await settings.checkInCount();
     ReviewService.maybePromptAfterCheckIn(count);
-    
+
+    final reward = await GameService.instance.recordCheckIn();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final top = (newEgos.toList()..sort((a, b) => b.leaning.compareTo(a.leaning))).first;
+      RewardOverlay.show(context, reward, color: _colorFor(identityIdFromAny(top.name)), title: 'Check-in complete');
+    });
+
     return newEgos;
   }
 
@@ -99,7 +111,8 @@ class _AlterEgoScreenState extends State<AlterEgoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Your Evolving Alter Egos')),
+      backgroundColor: const Color(0xFF0B0D12),
+      appBar: AppBar(title: const Text('Your Voices Today'), backgroundColor: Colors.transparent, elevation: 0),
       body: FutureBuilder<List<AlterEgo>>(
         future: _alterEgosFuture,
         builder: (context, snapshot) {
@@ -111,6 +124,7 @@ class _AlterEgoScreenState extends State<AlterEgoScreen> {
 
           return Stack(
             children: [
+              Positioned.fill(child: MysticBackground(aura: visible.isEmpty ? const Color(0xff6C5CE7) : _colorFor(identityIdFromAny(visible.first.name)))),
               // "Off-Stage Paint" to avoid debugNeedsPaint errors
               Positioned(
                 top: -2000,
@@ -134,7 +148,10 @@ class _AlterEgoScreenState extends State<AlterEgoScreen> {
                     Expanded(
                       child: ListView.builder(
                         itemCount: visible.length,
-                        itemBuilder: (context, index) => _voiceCard(visible[index]),
+                        itemBuilder: (context, index) => _voiceCard(visible[index])
+                            .animate()
+                            .fadeIn(delay: (250 + 180 * index).ms, duration: 500.ms)
+                            .slideY(begin: .25, curve: Curves.easeOutBack),
                       ),
                     ),
                     if (!_monetization.isPremium)
@@ -185,7 +202,13 @@ class _AlterEgoScreenState extends State<AlterEgoScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${ego.icon} ${ego.name}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          Row(
+            children: [
+              Sigil(glyph: ego.icon, color: _colorFor(id), size: 44),
+              const SizedBox(width: 12),
+              Expanded(child: Text(ego.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),
+            ],
+          ),
           const SizedBox(height: 8),
           Text(profile.description),
           const SizedBox(height: 8),
@@ -195,9 +218,34 @@ class _AlterEgoScreenState extends State<AlterEgoScreen> {
           ] else
             const Text('Shadow analysis is Premium.', style: TextStyle(color: Colors.amber)),
           const SizedBox(height: 8),
-          Text('${(ego.leaning * 100).toStringAsFixed(1)}%'),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: ego.leaning.clamp(0.0, 1.0),
+              minHeight: 6,
+              backgroundColor: Colors.white10,
+              valueColor: AlwaysStoppedAnimation(_colorFor(id)),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text('${(ego.leaning * 100).toStringAsFixed(1)}% of your energy', style: const TextStyle(fontSize: 12, color: Colors.white54)),
         ],
       ),
     );
+  }
+
+  Color _colorFor(IdentityId? id) {
+    return switch (id) {
+      IdentityId.strategist => Colors.blue,
+      IdentityId.rebel => Colors.red,
+      IdentityId.caretaker => Colors.green,
+      IdentityId.achiever => Colors.orange,
+      IdentityId.romantic => Colors.pink,
+      IdentityId.protector => Colors.teal,
+      IdentityId.analyst => Colors.indigo,
+      IdentityId.escapist => Colors.blueGrey,
+      IdentityId.shadow => Colors.purple,
+      null => const Color(0xff6C5CE7),
+    };
   }
 }

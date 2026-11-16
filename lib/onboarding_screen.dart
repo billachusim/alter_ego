@@ -148,7 +148,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           const SizedBox(height: 20),
           _privacyItem(Icons.no_accounts, 'No accounts required.'),
           _privacyItem(Icons.cloud_off, 'Your data never leaves your phone.'),
-          _privacyItem(Icons.visibility_off, 'Encrypted local storage.'),
+          _privacyItem(Icons.visibility_off, 'No tracking. No ads. Works offline.'),
         ],
       ),
     );

@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:alter_ego/models/identity.dart';
+import 'package:alter_ego/content/question_bank.dart';
 import 'package:alter_ego/question.dart';
 
 class CouncilReply {
@@ -162,19 +163,17 @@ class OfflineContentRepository {
   static List<Question> selectDailyQuestions({
     required DateTime day,
     required Set<String> excludedIds,
-    int count = 8,
+    int count = 6,
   }) {
-    final bank = getQuestionBank().where((q) => !excludedIds.contains(q.id)).toList();
-    if (bank.isEmpty) return [];
-    bank.shuffle(Random(day.year + day.month + day.day));
+    final all = questionBank();
+    var bank = all.where((q) => !excludedIds.contains(q.id)).toList();
+    // Seen everything recently? Start a fresh cycle rather than showing nothing.
+    if (bank.length < count) bank = all.toList();
+    final rng = Random(day.year * 1000 + day.month * 40 + day.day + excludedIds.length);
+    bank.shuffle(rng);
 
-    // The bank holds several copies of each prompt; keep one per prompt so a
-    // check-in never asks the same thing twice, and vary the answer order.
-    final seenText = <String>{};
-    final rng = Random(day.year * 1000 + day.month * 40 + day.day);
     final byCategory = <String, List<Question>>{};
     for (final q in bank) {
-      if (!seenText.add(q.text)) continue;
       final answers = q.answers.toList()..shuffle(rng);
       byCategory.putIfAbsent(q.category, () => []).add(
             Question(id: q.id, category: q.category, text: q.text, answers: answers),
@@ -182,13 +181,18 @@ class OfflineContentRepository {
     }
 
     final selected = <Question>[];
-    while (selected.length < count && byCategory.values.any((list) => list.isNotEmpty)) {
-      for (final entry in byCategory.entries) {
-        if (selected.length >= count) break;
-        if (entry.value.isNotEmpty) {
-          selected.add(entry.value.removeAt(0));
-        }
+    // Always one mystic scenario for a little magic, if available.
+    final mystic = byCategory.remove('mystic');
+    final categories = byCategory.keys.toList()..shuffle(rng);
+    while (selected.length < count - (mystic == null || mystic.isEmpty ? 0 : 1) &&
+        categories.any((c) => byCategory[c]!.isNotEmpty)) {
+      for (final c in categories) {
+        if (selected.length >= count - (mystic == null || mystic.isEmpty ? 0 : 1)) break;
+        if (byCategory[c]!.isNotEmpty) selected.add(byCategory[c]!.removeAt(0));
       }
+    }
+    if (mystic != null && mystic.isNotEmpty) {
+      selected.insert(rng.nextInt(selected.length + 1), mystic.first);
     }
     return selected;
   }
