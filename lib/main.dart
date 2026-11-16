@@ -23,11 +23,31 @@ import 'package:flutter_animate/flutter_animate.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final settings = AppSettingsService();
-  final hasOnboarded = await settings.hasOnboarded();
-  await MonetizationService.instance.init();
-  await NotificationService.instance.init();
-  await NotificationService.instance.syncNotifications();
+  bool hasOnboarded = false;
+  try {
+    hasOnboarded = await settings.hasOnboarded().timeout(const Duration(seconds: 3));
+  } catch (e) {
+    debugPrint('Onboarding flag read failed: $e');
+  }
+  // Show the UI first. Billing (StoreKit / Play Billing) and notification
+  // setup used to be awaited before runApp; if either stalled or threw, the
+  // app never left the splash screen.
   runApp(AlterEgoApp(hasOnboarded: hasOnboarded));
+  unawaited(_initServices());
+}
+
+Future<void> _initServices() async {
+  try {
+    await MonetizationService.instance.init().timeout(const Duration(seconds: 10));
+  } catch (e) {
+    debugPrint('Monetization init failed: $e');
+  }
+  try {
+    await NotificationService.instance.init().timeout(const Duration(seconds: 10));
+    await NotificationService.instance.syncNotifications().timeout(const Duration(seconds: 10));
+  } catch (e) {
+    debugPrint('Notification init failed: $e');
+  }
 }
 
 class AlterEgoApp extends StatelessWidget {

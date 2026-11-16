@@ -87,7 +87,14 @@ class MonetizationService {
       },
     );
 
-    await refreshStoreState();
+    _emit();
+    // Store queries can be slow or stall (StoreKit, Play Billing); never block
+    // on them. Local entitlement and trial state above are already loaded.
+    unawaited(refreshStoreState().catchError((Object e) {
+      _isLoadingProducts = false;
+      _lastError = e.toString();
+      _emit();
+    }));
   }
 
   Future<void> refreshStoreState() async {
